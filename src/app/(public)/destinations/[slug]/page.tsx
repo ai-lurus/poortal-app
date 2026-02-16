@@ -36,7 +36,7 @@ export default async function DestinationPage({
   ])
 
   return (
-    <div className="mx-auto max-w-md pb-24">
+    <div className="mx-auto max-w-md pb-24 md:max-w-7xl md:px-8">
       {/* Inline header — mobile only */}
       <header className="flex items-center justify-between px-5 pt-4 md:hidden">
         <div className="flex items-center gap-2">
@@ -61,21 +61,21 @@ export default async function DestinationPage({
       </header>
 
       {/* Welcome */}
-      <section className="px-5 pt-6 md:pt-8">
-        <h1 className="text-2xl font-bold md:text-3xl">
+      <section className="px-5 pt-6 md:pt-10 md:text-center">
+        <h1 className="text-2xl font-bold md:text-4xl">
           Welcome to{' '}
           <span className="text-primary">{destination.name}!</span>
         </h1>
-        <div className="mt-1 inline-block rounded bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+        <div className="mt-1 inline-block rounded bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary md:mt-2 md:text-xs">
           POORTAL
         </div>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-2 text-sm text-muted-foreground md:text-base">
           I&apos;m your digital <strong>concierge</strong> so...
         </p>
       </section>
 
-      {/* Search pill */}
-      <div className="px-5 py-4">
+      {/* Search pill — mobile only */}
+      <div className="px-5 py-4 md:hidden">
         <Link
           href={ROUTES.explore}
           className="flex items-center gap-3 rounded-full border bg-muted/50 px-4 py-2.5"
@@ -90,8 +90,8 @@ export default async function DestinationPage({
 
       {/* Category grid — 2 columns */}
       {categories.length > 0 && (
-        <section className="px-5">
-          <div className="grid grid-cols-2 gap-2">
+        <section className="px-5 md:mt-8">
+          <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-6">
             {categories.map((cat) => (
               <Link
                 key={cat.id}
@@ -110,7 +110,7 @@ export default async function DestinationPage({
       )}
 
       {/* Concierge button */}
-      <div className="flex justify-center py-5">
+      <div className="flex justify-center py-5 md:py-10">
         <button
           type="button"
           className="flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-md transition-transform hover:scale-105"
@@ -133,9 +133,13 @@ export default async function DestinationPage({
             </Link>
           </div>
 
-          <div className="mt-3 flex gap-3 overflow-x-auto scrollbar-hide">
+          <div className="mt-3 flex gap-3 overflow-x-auto scrollbar-hide md:grid md:grid-cols-4 md:overflow-visible">
             {experiences.map((exp) => (
-              <ExperienceCardCompact key={exp.id} experience={exp} />
+              <ExperienceCardCompact
+                key={exp.id}
+                experience={exp}
+                className="md:w-full"
+              />
             ))}
           </div>
         </section>

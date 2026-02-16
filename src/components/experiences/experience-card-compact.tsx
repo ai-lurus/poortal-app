@@ -2,13 +2,15 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Star, MapPin } from 'lucide-react'
 import { ROUTES } from '@/lib/constants'
+import { cn } from '@/lib/utils'
 import type { ExperienceSearchResult } from '@/types'
 
 interface ExperienceCardCompactProps {
   experience: ExperienceSearchResult
+  className?: string
 }
 
-export function ExperienceCardCompact({ experience }: ExperienceCardCompactProps) {
+export function ExperienceCardCompact({ experience, className }: ExperienceCardCompactProps) {
   const formattedPrice = new Intl.NumberFormat('es-MX', {
     style: 'currency',
     currency: experience.price_currency || 'MXN',
@@ -18,7 +20,7 @@ export function ExperienceCardCompact({ experience }: ExperienceCardCompactProps
   return (
     <Link
       href={ROUTES.experience(experience.id)}
-      className="block w-[164px] shrink-0"
+      className={cn("block w-[164px] shrink-0", className)}
     >
       <div className="relative aspect-square overflow-hidden rounded-xl">
         {experience.cover_image_url ? (
@@ -27,7 +29,7 @@ export function ExperienceCardCompact({ experience }: ExperienceCardCompactProps
             alt={experience.title}
             fill
             className="object-cover"
-            sizes="164px"
+            sizes="(max-width: 768px) 164px, 300px"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-muted">
