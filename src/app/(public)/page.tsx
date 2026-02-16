@@ -79,7 +79,7 @@ export default function HomePage() {
           {categories.map((category) => (
             <Link
               key={category.slug}
-              href={`${ROUTES.explore}?category=${category.slug}`}
+              href={category.slug === 'tours' ? ROUTES.tours : `${ROUTES.explore}?category=${category.slug}`}
             >
               <Card className="transition-shadow hover:shadow-md cursor-pointer">
                 <CardContent className="flex flex-col items-center gap-3 p-6">

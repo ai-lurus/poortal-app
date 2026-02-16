@@ -7,6 +7,7 @@ export const ROUTES = {
   // Public
   home: '/',
   explore: '/explore',
+  tours: '/tours',
   destination: (slug: string) => `/destinations/${slug}`,
   experience: (id: string) => `/experience/${id}`,
   cart: '/cart',
