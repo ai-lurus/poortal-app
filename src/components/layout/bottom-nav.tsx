@@ -2,55 +2,53 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, Search, ShoppingCart, Ticket, User } from 'lucide-react'
-import { useCartStore } from '@/stores/cart-store'
+import { Home, Bell, ClipboardList } from 'lucide-react'
 import { ROUTES } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
-const tabs = [
-  { href: ROUTES.home, icon: Bell, label: 'Inicio' },
-  { href: ROUTES.explore, icon: Search, label: 'Explorar' },
-  { href: ROUTES.cart, icon: ShoppingCart, label: 'Carrito' },
-  { href: ROUTES.wallet, icon: Ticket, label: 'Wallet' },
-  { href: ROUTES.profile, icon: User, label: 'Perfil' },
-] as const
-
 export function BottomNav() {
   const pathname = usePathname()
-  const itemCount = useCartStore((s) => s.items.length)
+
+  const isHome =
+    pathname === '/' || pathname.startsWith('/destinations')
+  const isWallet = pathname.startsWith('/wallet') || pathname.startsWith('/bookings')
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden">
       <div className="flex h-16 items-center justify-around">
-        {tabs.map(({ href, icon: Icon, label }) => {
-          const isActive =
-            href === '/'
-              ? pathname === '/' || pathname.startsWith('/destinations')
-              : pathname.startsWith(href)
+        {/* Home */}
+        <Link
+          href={ROUTES.home}
+          className={cn(
+            'flex flex-col items-center gap-0.5 text-[10px]',
+            isHome ? 'text-primary' : 'text-muted-foreground'
+          )}
+        >
+          <Home className="h-5 w-5" />
+          <span>Home</span>
+        </Link>
 
-          return (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                'flex flex-col items-center gap-0.5 text-[10px]',
-                isActive
-                  ? 'text-primary'
-                  : 'text-muted-foreground'
-              )}
-            >
-              <span className="relative">
-                <Icon className="h-5 w-5" />
-                {href === ROUTES.cart && itemCount > 0 && (
-                  <span className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
-                    {itemCount}
-                  </span>
-                )}
-              </span>
-              <span>{label}</span>
-            </Link>
-          )
-        })}
+        {/* POORTAL bell — accent highlight */}
+        <Link
+          href={ROUTES.home}
+          className="flex flex-col items-center gap-0.5 text-[10px]"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent">
+            <Bell className="h-5 w-5 text-accent-foreground" />
+          </span>
+        </Link>
+
+        {/* Bookings / list */}
+        <Link
+          href={ROUTES.wallet}
+          className={cn(
+            'flex flex-col items-center gap-0.5 text-[10px]',
+            isWallet ? 'text-primary' : 'text-muted-foreground'
+          )}
+        >
+          <ClipboardList className="h-5 w-5" />
+          <span>Tickets</span>
+        </Link>
       </div>
     </nav>
   )

@@ -20,6 +20,9 @@ import {
   Palette,
   Wine,
   MapPin,
+  Moon,
+  Bus,
+  Store,
   type LucideProps,
 } from 'lucide-react'
 import type { ComponentType } from 'react'
@@ -46,6 +49,9 @@ const iconMap: Record<string, ComponentType<LucideProps>> = {
   Palette,
   Wine,
   MapPin,
+  Moon,
+  Bus,
+  Store,
 }
 
 interface DynamicIconProps extends Omit<LucideProps, 'name'> {

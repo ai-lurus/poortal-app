@@ -1,12 +1,11 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import Image from 'next/image'
 import { getDestinationBySlug, getDestinationCategories } from '@/queries/destinations'
 import { getExperiencesByDestination } from '@/queries/experiences'
-import { ExperienceGrid } from '@/components/experiences/experience-grid'
 import { ExperienceCardCompact } from '@/components/experiences/experience-card-compact'
 import { DynamicIcon } from '@/lib/lucide-icon-map'
-import { MapPin, Search, ArrowRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Search, Mic, MessageCircle, ShoppingCart, ArrowRight } from 'lucide-react'
 import { ROUTES } from '@/lib/constants'
 
 export async function generateMetadata({
@@ -37,118 +36,110 @@ export default async function DestinationPage({
   ])
 
   return (
-    <div>
-      {/* Header compacto */}
-      <header className="pt-4 pb-2 md:pt-8 md:pb-4">
-        <div className="w-full px-4 md:container md:mx-auto">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-1.5 text-muted-foreground">
-                <MapPin className="h-3.5 w-3.5" />
-                <span className="text-xs">{destination.country}</span>
-              </div>
-              <h1 className="mt-1 text-xl font-bold md:text-3xl">
-                {destination.name}
-              </h1>
-            </div>
-            <Link href={ROUTES.explore}>
-              <Button variant="ghost" size="icon" className="md:hidden">
-                <Search className="h-5 w-5" />
-              </Button>
-            </Link>
-          </div>
-
-          {destination.description && (
-            <p className="mt-2 hidden text-muted-foreground md:block md:max-w-2xl">
-              {destination.description}
-            </p>
-          )}
+    <div className="mx-auto max-w-md pb-24">
+      {/* Inline header — mobile only */}
+      <header className="flex items-center justify-between px-5 pt-4 md:hidden">
+        <div className="flex items-center gap-2">
+          <Image
+            src="/logo.png"
+            alt="POORTAL"
+            width={28}
+            height={28}
+            className="rounded"
+          />
+          <span className="text-lg font-bold tracking-tight text-primary">
+            POORTAL
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Avatar placeholder */}
+          <div className="h-8 w-8 rounded-full bg-amber-200" />
+          <Link href={ROUTES.cart}>
+            <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+          </Link>
         </div>
       </header>
 
-      {/* Barra de busqueda (mobile) */}
-      <div className="px-4 py-3 md:hidden">
+      {/* Welcome */}
+      <section className="px-5 pt-6 md:pt-8">
+        <h1 className="text-2xl font-bold md:text-3xl">
+          Welcome to{' '}
+          <span className="text-primary">{destination.name}!</span>
+        </h1>
+        <div className="mt-1 inline-block rounded bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">
+          POORTAL
+        </div>
+        <p className="mt-2 text-sm text-muted-foreground">
+          I&apos;m your digital <strong>concierge</strong> so...
+        </p>
+      </section>
+
+      {/* Search pill */}
+      <div className="px-5 py-4">
         <Link
           href={ROUTES.explore}
-          className="flex items-center gap-3 rounded-full border bg-muted/50 px-4 py-2.5 w-full max-w-full"
+          className="flex items-center gap-3 rounded-full border bg-muted/50 px-4 py-2.5"
         >
-          <Search className="h-4 w-4 shrink-0 text-muted-foreground shadow-sm" />
-          <span className="text-sm text-muted-foreground truncate min-w-0">
-            Que quieres hacer en {destination.name}?
+          <span className="flex-1 text-sm font-medium text-muted-foreground">
+            ASK ANYTHING
           </span>
+          <Mic className="h-4 w-4 text-muted-foreground" />
+          <Search className="h-4 w-4 text-muted-foreground" />
         </Link>
       </div>
 
-      {/* Grid de categorias */}
+      {/* Category grid — 2 columns */}
       {categories.length > 0 && (
-        <section className="py-4 md:py-8">
-          <div className="w-full px-4 md:container md:mx-auto">
-            <h2 className="text-lg font-bold md:text-2xl">Categorias</h2>
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4 md:mt-4 md:flex md:flex-wrap md:gap-4">
-              {categories.map((cat) => (
-                <Link
-                  key={cat.id}
-                  href={`${ROUTES.explore}?category=${cat.slug}`}
-                  className="flex flex-col items-center gap-1.5 min-w-0 w-full"
-                >
-                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-primary/10 md:h-16 md:w-16">
-                    <DynamicIcon
-                      name={cat.icon}
-                      className="h-6 w-6 text-primary md:h-7 md:w-7"
-                    />
-                  </div>
-                  <span className="text-center text-[11px] font-medium leading-tight md:text-xs w-full break-words px-1">
-                    {cat.name}
-                  </span>
-                </Link>
-              ))}
-            </div>
+        <section className="px-5">
+          <div className="grid grid-cols-2 gap-2">
+            {categories.map((cat) => (
+              <Link
+                key={cat.id}
+                href={`${ROUTES.explore}?category=${cat.slug}`}
+                className="flex items-center gap-3 rounded-xl border bg-background px-4 py-3 transition-colors hover:bg-muted/50"
+              >
+                <DynamicIcon
+                  name={cat.icon}
+                  className="h-5 w-5 shrink-0 text-primary"
+                />
+                <span className="text-sm font-medium">{cat.name}</span>
+              </Link>
+            ))}
           </div>
         </section>
       )}
 
-      {/* Experiencias populares */}
-      <section className="py-4 md:py-8">
-        <div className="w-full px-4 md:container md:mx-auto">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-bold md:text-2xl">
-              Experiencias populares
-            </h2>
-            <Button variant="ghost" size="sm" asChild className="shrink-0">
-              <Link href={ROUTES.explore}>
-                Ver todo <ArrowRight className="ml-1 h-4 w-4" />
-              </Link>
-            </Button>
-          </div>
-        </div>
+      {/* Concierge button */}
+      <div className="flex justify-center py-5">
+        <button
+          type="button"
+          className="flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-md transition-transform hover:scale-105"
+        >
+          <MessageCircle className="h-4 w-4" />
+          concierge
+        </button>
+      </div>
 
-        {/* Scroll horizontal (mobile) */}
-        {experiences.length > 0 ? (
-          <>
-            <div className="mt-3 flex gap-3 overflow-x-auto px-4 scrollbar-hide md:hidden w-full max-w-full">
-              {experiences.map((exp) => (
-                <ExperienceCardCompact key={exp.id} experience={exp} />
-              ))}
-            </div>
-
-            {/* Grid normal (desktop) */}
-            <div className="container mx-auto mt-6 hidden px-4 md:block">
-              <ExperienceGrid
-                experiences={experiences}
-                emptyMessage="Pronto habra experiencias disponibles en este destino."
-              />
-            </div>
-          </>
-        ) : (
-          <div className="container mx-auto mt-4 px-4">
-            <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16">
-              <p className="text-sm text-muted-foreground">
-                Pronto habra experiencias disponibles en este destino.
-              </p>
-            </div>
+      {/* Recommended for you */}
+      {experiences.length > 0 && (
+        <section className="px-5">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-bold">Recommended for you</h2>
+            <Link
+              href={ROUTES.explore}
+              className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+            >
+              See all <ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
-        )}
-      </section>
+
+          <div className="mt-3 flex gap-3 overflow-x-auto scrollbar-hide">
+            {experiences.map((exp) => (
+              <ExperienceCardCompact key={exp.id} experience={exp} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   )
 }

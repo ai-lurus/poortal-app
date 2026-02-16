@@ -19,14 +19,16 @@ values
 -- 2. CATEGORIES
 -- ============================================================
 insert into public.categories (id, name, slug, description, icon, sort_order) values
-  ('c0000001-0000-0000-0000-000000000001', 'Tours y Excursiones', 'tours', 'Tours guiados, excursiones y actividades organizadas', 'Compass', 1),
-  ('c0000001-0000-0000-0000-000000000002', 'Deportes Acuaticos', 'deportes-acuaticos', 'Snorkel, buceo, kayak, parasailing y mas', 'Waves', 2),
-  ('c0000001-0000-0000-0000-000000000003', 'Renta de Vehiculos', 'renta-vehiculos', 'Autos, motos y scooters', 'Car', 3),
-  ('c0000001-0000-0000-0000-000000000004', 'Restaurantes', 'restaurantes', 'Gastronomia local e internacional', 'Utensils', 4),
-  ('c0000001-0000-0000-0000-000000000005', 'Bienestar y Spa', 'bienestar-spa', 'Masajes, temazcal y relajacion', 'Heart', 5),
-  ('c0000001-0000-0000-0000-000000000006', 'Vida Nocturna', 'vida-nocturna', 'Bares, clubs y fiestas', 'Moon', 6),
-  ('c0000001-0000-0000-0000-000000000007', 'Transporte', 'transporte', 'Traslados y transporte privado', 'Bus', 7),
-  ('c0000001-0000-0000-0000-000000000008', 'Cultura', 'experiencias-culturales', 'Ruinas mayas, museos y tradiciones', 'Landmark', 8);
+  ('c0000001-0000-0000-0000-000000000001', 'tours', 'tours', 'Tours guiados, excursiones y actividades organizadas', 'Compass', 1),
+  ('c0000001-0000-0000-0000-000000000002', 'sea', 'sea', 'Snorkel, buceo, kayak, parasailing y mas', 'Waves', 2),
+  ('c0000001-0000-0000-0000-000000000003', 'ride', 'ride', 'Autos, motos y scooters', 'Car', 3),
+  ('c0000001-0000-0000-0000-000000000004', 'food', 'food', 'Gastronomia local e internacional', 'Utensils', 4),
+  ('c0000001-0000-0000-0000-000000000005', 'stay', 'stay', 'Masajes, temazcal y relajacion', 'Heart', 5),
+  ('c0000001-0000-0000-0000-000000000006', 'party', 'party', 'Bares, clubs y fiestas', 'Moon', 6),
+  ('c0000001-0000-0000-0000-000000000007', 'sports', 'sports', 'Traslados y transporte privado', 'Dumbbell', 7),
+  ('c0000001-0000-0000-0000-000000000008', 'culture', 'culture', 'Ruinas mayas, museos y tradiciones', 'Landmark', 8),
+  ('c0000001-0000-0000-0000-000000000009', 'shopping', 'shopping', 'Tiendas, mercados y souvenirs', 'ShoppingBag', 9),
+  ('c0000001-0000-0000-0000-000000000010', 'wellness', 'wellness', 'Bienestar, yoga y meditacion', 'Sparkles', 10);
 
 -- ============================================================
 -- 3. SUBCATEGORIES

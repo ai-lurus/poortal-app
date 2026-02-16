@@ -9,21 +9,25 @@ import {
   Utensils,
   Heart,
   Moon,
-  Bus,
+  Dumbbell,
   Landmark,
+  ShoppingBag,
+  Sparkles,
   Search,
   ArrowRight,
 } from 'lucide-react'
 
 const categories = [
-  { name: 'Tours y Excursiones', icon: Compass, slug: 'tours' },
-  { name: 'Deportes Acuaticos', icon: Waves, slug: 'deportes-acuaticos' },
-  { name: 'Renta de Vehiculos', icon: Car, slug: 'renta-vehiculos' },
-  { name: 'Restaurantes', icon: Utensils, slug: 'restaurantes' },
-  { name: 'Bienestar y Spa', icon: Heart, slug: 'bienestar-spa' },
-  { name: 'Vida Nocturna', icon: Moon, slug: 'vida-nocturna' },
-  { name: 'Transporte', icon: Bus, slug: 'transporte' },
-  { name: 'Cultura', icon: Landmark, slug: 'experiencias-culturales' },
+  { name: 'tours', icon: Compass, slug: 'tours' },
+  { name: 'sea', icon: Waves, slug: 'sea' },
+  { name: 'ride', icon: Car, slug: 'ride' },
+  { name: 'food', icon: Utensils, slug: 'food' },
+  { name: 'stay', icon: Heart, slug: 'stay' },
+  { name: 'party', icon: Moon, slug: 'party' },
+  { name: 'sports', icon: Dumbbell, slug: 'sports' },
+  { name: 'culture', icon: Landmark, slug: 'culture' },
+  { name: 'shopping', icon: ShoppingBag, slug: 'shopping' },
+  { name: 'wellness', icon: Sparkles, slug: 'wellness' },
 ]
 
 export default function HomePage() {
