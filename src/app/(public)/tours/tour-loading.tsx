@@ -23,7 +23,7 @@ export function TourLoading({ onComplete }: TourLoadingProps) {
         <div className="absolute inset-0 animate-ping rounded-full bg-primary/10" style={{ animationDuration: '2s' }} />
       </div>
 
-      <p className="text-sm font-semibold text-primary">Mr. Sugar:</p>
+      <p className="text-sm font-semibold text-primary">Poortal:</p>
       <h2 className="mt-1 text-xl font-semibold text-foreground text-center">
         Finding the best tours for you...
       </h2>

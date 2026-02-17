@@ -51,7 +51,7 @@ export function TourBookingConfig({
       {/* Content */}
       <div className="flex-1 px-6 pt-4 pb-32">
         <div className="mb-8">
-          <p className="text-sm font-semibold text-primary">Mr. Sugar:</p>
+          <p className="text-sm font-semibold text-primary">Poortal:</p>
           <h2 className="text-lg font-semibold text-foreground">
             When and how many?
           </h2>

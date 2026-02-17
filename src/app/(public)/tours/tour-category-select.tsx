@@ -63,7 +63,7 @@ export function TourCategorySelect({
       {/* Content */}
       <div className="flex-1 px-6 pt-4 pb-32">
         <div className="mb-6">
-          <p className="text-sm font-semibold text-primary">Mr. Sugar:</p>
+          <p className="text-sm font-semibold text-primary">Poortal:</p>
           <h2 className="text-lg font-semibold text-foreground">
             What are you looking for?
           </h2>
