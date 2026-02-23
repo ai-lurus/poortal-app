@@ -3,8 +3,7 @@ import Link from 'next/link'
 import { getDestinationBySlug, getDestinationCategories } from '@/queries/destinations'
 import { HomeHeader } from '@/components/home/home-header'
 import { CategoryGrid } from '@/components/home/category-grid'
-import { Button } from '@/components/ui/button'
-import { Search, MessageSquareText } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { ROUTES } from '@/lib/constants'
 
 export async function generateMetadata({
@@ -29,7 +28,7 @@ export default async function DestinationPage({
 
   if (!destination) notFound()
 
-  const categories = await getDestinationCategories(destination.id)
+
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -40,7 +39,6 @@ export default async function DestinationPage({
         <div className="px-6 mt-6 mb-8 text-center">
           <h1 className="text-2xl font-bold text-foreground leading-tight">
             Welcome to {destination.name}!
-            <span className="block text-primary mt-1">- Poortal</span>
           </h1>
         </div>
 
@@ -60,16 +58,7 @@ export default async function DestinationPage({
         <CategoryGrid />
       </main>
 
-      {/* Floating Concierge Button */}
-      <div className="fixed bottom-24 left-0 right-0 flex justify-center px-4 z-20 pointer-events-none">
-        <Button
-          size="lg"
-          className="w-full max-w-xs rounded-full bg-primary text-primary-foreground text-lg font-bold h-14 shadow-lg pointer-events-auto flex items-center justify-between px-8"
-        >
-          <span>concierge</span>
-          <MessageSquareText className="h-6 w-6 fill-current" />
-        </Button>
-      </div>
+
     </div>
   )
 }

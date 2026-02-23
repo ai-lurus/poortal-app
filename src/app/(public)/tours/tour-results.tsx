@@ -108,7 +108,7 @@ function TourResultCard({ tour }: { tour: ExperienceSearchResult }) {
         : ''
 
   return (
-    <Link href={ROUTES.experience(tour.id)}>
+    <Link href={ROUTES.tourDetail(tour.id)}>
       <Card className="overflow-hidden transition-shadow hover:shadow-md">
         <div className="flex">
           {/* Image */}
