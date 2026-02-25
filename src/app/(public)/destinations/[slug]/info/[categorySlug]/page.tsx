@@ -22,6 +22,8 @@ import {
     Church,
     PawPrint
 } from 'lucide-react'
+import { getFeaturedExperiencesByCategory } from '@/queries/experiences'
+import { getCategoryBySlug } from '@/queries/categories'
 
 // Define a type for our category data to avoid 'any'
 type CategoryItem = {
@@ -452,9 +454,46 @@ export default async function DestinationCategoryInfoPage({
 
     if (!destination) notFound()
 
-    const categoryData = CATEGORY_DATA[categorySlug]
+    // Map dynamic category slugs directly to their top-level pages
+    if (categorySlug === 'restaurantes' || categorySlug === 'restaurants') {
+        const { redirect } = await import('next/navigation')
+        redirect('/restaurants')
+    }
 
-    // Fallback if category doesn't have mock data yet
+    if (categorySlug === 'tours' || categorySlug === 'experiencias-culturales') {
+        const { redirect } = await import('next/navigation')
+        redirect('/tours')
+    }
+
+    if (categorySlug === 'sea' || categorySlug === 'rental') {
+        const { redirect } = await import('next/navigation')
+        redirect('/rental')
+    }
+
+    if (categorySlug === 'night-life' || categorySlug === 'nightlife') {
+        const { redirect } = await import('next/navigation')
+        redirect('/nightlife')
+    }
+
+    if (categorySlug === 'wellness' || categorySlug === 'spa') {
+        const { redirect } = await import('next/navigation')
+        // Currently the Spa grid is at /wellness/spa but we might just redirect to the top wellness categorize
+        redirect('/wellness')
+    }
+
+    if (categorySlug === 'attractions' || categorySlug === 'culture') {
+        const { redirect } = await import('next/navigation')
+        redirect('/culture')
+    }
+
+    const categoryData = CATEGORY_DATA[categorySlug]
+    const dbCategory = await getCategoryBySlug(categorySlug)
+    const featuredItems = dbCategory ? await getFeaturedExperiencesByCategory(dbCategory.id) : []
+
+    const hasFeaturedItems = featuredItems && featuredItems.length > 0
+    const fallbackItems = categoryData?.items || []
+
+    // Fallback if category doesn't have mock data AND no real records yet
     if (!categoryData) {
         return (
             <div className="min-h-screen bg-background flex flex-col items-center justify-center pb-24 px-6 text-center">
@@ -470,7 +509,12 @@ export default async function DestinationCategoryInfoPage({
         )
     }
 
-    const { title, icon: Icon, color, subtitle, items } = categoryData
+    const { title, icon: Icon, color, subtitle } = categoryData || {
+        title: dbCategory?.name || categorySlug,
+        icon: Star,
+        color: 'text-amber-500',
+        subtitle: 'Featured Recommendations'
+    }
 
     return (
         <div className="min-h-screen bg-background pb-24">
@@ -497,42 +541,54 @@ export default async function DestinationCategoryInfoPage({
 
             {/* List of Cards */}
             <main className="container mx-auto max-w-md px-4 flex flex-col gap-4">
-                {items.map((item: CategoryItem, idx: number) => {
-                    if (categorySlug === 'local-tips') {
-                        return (
-                            <LocalTipCard
-                                key={idx}
-                                title={item.title}
-                                author={item.author || ''}
-                                date={item.date || ''}
-                                description={item.description}
-                                images={item.images}
-                            />
-                        )
-                    }
-
-                    if (['restaurants', 'night-life', 'wellness', 'attractions'].includes(categorySlug)) {
-                        return (
-                            <RestaurantCard
-                                key={idx}
-                                title={item.title}
-                                description={item.description}
-                                images={item.images}
-                                moreInfoLink={item.moreInfoLink}
-                            />
-                        )
-                    }
-
-                    return (
-                        <InfoCard
-                            key={idx}
+                {hasFeaturedItems ? (
+                    featuredItems.map((item, idx) => (
+                        <RestaurantCard
+                            key={item.id || idx}
                             title={item.title}
-                            description={item.description}
-                            visual={item.visual}
-                            actions={item.actions}
+                            description={[item.short_description || '']}
+                            images={3} // Hardcoded layout grid to match mockups for now
+                            moreInfoLink={`/${categorySlug}/${item.id}`} // We assume the path matches the category
                         />
-                    )
-                })}
+                    ))
+                ) : (
+                    fallbackItems.map((item: CategoryItem, idx: number) => {
+                        if (categorySlug === 'local-tips') {
+                            return (
+                                <LocalTipCard
+                                    key={idx}
+                                    title={item.title}
+                                    author={item.author || ''}
+                                    date={item.date || ''}
+                                    description={item.description}
+                                    images={item.images}
+                                />
+                            )
+                        }
+
+                        if (['restaurants', 'night-life', 'wellness', 'attractions'].includes(categorySlug)) {
+                            return (
+                                <RestaurantCard
+                                    key={idx}
+                                    title={item.title}
+                                    description={item.description}
+                                    images={item.images}
+                                    moreInfoLink={item.moreInfoLink}
+                                />
+                            )
+                        }
+
+                        return (
+                            <InfoCard
+                                key={idx}
+                                title={item.title}
+                                description={item.description}
+                                visual={item.visual}
+                                actions={item.actions}
+                            />
+                        )
+                    })
+                )}
             </main>
         </div>
     )

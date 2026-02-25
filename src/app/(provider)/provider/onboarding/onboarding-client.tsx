@@ -44,7 +44,7 @@ export function OnboardingClient({ provider }: OnboardingClientProps) {
     {}
   )
 
-  const status = statusConfig[provider.status]
+  const status = statusConfig[provider.status as keyof typeof statusConfig]
   const canComplete = provider.status === 'approved_incomplete' || provider.status === 'active'
   const isPending_review = provider.status === 'pending_review'
 

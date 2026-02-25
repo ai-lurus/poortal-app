@@ -1,23 +1,23 @@
-'use client'
-
-import { useRouter } from 'next/navigation'
-import { ChevronLeft, ChevronDown } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { getCategoryBySlug } from '@/queries/categories'
+import { searchExperiences } from '@/queries/experiences'
+import { BackButton } from '../restaurants/back-button'
 
-export default function NightlifeSearchPage() {
-    const router = useRouter()
+export const metadata = {
+    title: 'Nightlife - POORTAL',
+}
+
+export default async function NightlifeSearchPage() {
+    const category = await getCategoryBySlug('night-life') // matching our db slug
+    const experiences = category ? await searchExperiences({ categoryId: category.id }) : []
 
     return (
         <div className="min-h-screen bg-white flex flex-col relative pb-10">
             {/* Header */}
             <div className="flex items-center justify-between px-6 pt-6 pb-4 bg-white sticky top-0 z-10">
-                <button
-                    onClick={() => router.back()}
-                    className="p-2 -ml-2 text-slate-900 active:scale-95 transition-transform"
-                >
-                    <ChevronLeft className="h-8 w-8" strokeWidth={3} />
-                </button>
+                <BackButton />
                 <div className="border border-slate-200 bg-white rounded-full px-12 py-3 shadow-sm absolute left-1/2 -translate-x-1/2">
                     <h1 className="text-sm font-bold text-slate-800 tracking-wide uppercase">
                         NIGHTLIFE
@@ -41,23 +41,41 @@ export default function NightlifeSearchPage() {
 
                 {/* Grid Container */}
                 <div className="w-full grid grid-cols-2 gap-3 pb-8">
-                    {/* Mock repeating the same poster 6 times */}
-                    {[1, 2, 3, 4, 5, 6].map((idx) => (
-                        <Link
-                            href={`/nightlife/${idx}`}
-                            key={idx}
-                            className="aspect-[4/5] rounded-xl overflow-hidden bg-slate-900 relative shadow-sm active:scale-95 transition-transform"
-                        >
-                            {/* Abstract mock interpretation of the poster. 
-                                In reality this would be an <Image src="..." /> */}
-                            <div className="absolute inset-0 bg-gradient-to-br from-indigo-900 via-purple-800 to-fuchsia-900 flex flex-col items-center justify-center p-3 text-center">
-                                <span className="text-emerald-400 font-bold text-sm leading-tight drop-shadow-md">Beach PartY</span>
-                                <span className="text-green-400 font-bold text-xs uppercase mb-auto drop-shadow-md">CoCo Bongo</span>
-
-                                <span className="text-white font-black text-2xl uppercase italic tracking-tighter drop-shadow-lg text-transparent bg-clip-text bg-gradient-to-tr from-cyan-400 to-green-300" style={{ WebkitTextStroke: '1px #000' }}>PARTY</span>
-                            </div>
-                        </Link>
-                    ))}
+                    {experiences.map((exp) => {
+                        return (
+                            <Link
+                                href={`/nightlife/${exp.id}`}
+                                key={exp.id}
+                                className="aspect-[4/5] rounded-xl overflow-hidden bg-slate-900 relative shadow-sm active:scale-95 transition-transform"
+                            >
+                                {exp.cover_image_url && (
+                                    <Image
+                                        src={exp.cover_image_url}
+                                        alt={exp.title}
+                                        fill
+                                        className="object-cover opacity-80"
+                                    />
+                                )}
+                                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/30 to-transparent flex flex-col justify-end p-3">
+                                    <span className="text-white font-bold text-sm leading-tight drop-shadow-md">
+                                        {exp.title}
+                                    </span>
+                                    <div className="flex items-center gap-1 mt-1">
+                                        <span className="text-teal-400 font-bold text-xs">
+                                            {exp.price_currency === 'USD' ? '$' : `$${exp.price_amount} ${exp.price_currency}`}
+                                            {/* We can map this better but fallback logic works */}
+                                            {exp.price_currency === 'USD' ? exp.price_amount : ''}
+                                        </span>
+                                    </div>
+                                </div>
+                            </Link>
+                        )
+                    })}
+                    {experiences.length === 0 && (
+                        <div className="col-span-2 py-12 text-center text-slate-500">
+                            No nightlife experiences available yet.
+                        </div>
+                    )}
                 </div>
 
             </main>

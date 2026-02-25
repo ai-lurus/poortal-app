@@ -209,7 +209,8 @@ export default async function ExperienceDetailPage({
               id: experience.id,
               title: experience.title,
               shortDescription: experience.short_description,
-              coverImageUrl: experience.experience_images?.find(i => i.is_cover)?.url || experience.experience_images?.[0]?.url || null,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              coverImageUrl: experience.experience_images?.find((i: any) => i.is_cover)?.url || experience.experience_images?.[0]?.url || null,
               providerName: experience.provider_profiles?.business_name || '',
               providerId: experience.provider_profiles?.id || '',
               priceAmount: Number(experience.price_amount),

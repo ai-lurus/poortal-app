@@ -144,3 +144,46 @@ export async function getExperiencesByCategory(
     page_offset: 0,
   })
 }
+
+export async function getFeaturedExperiencesByCategory(
+  categoryId: string,
+  limit = 10
+): Promise<ExperienceSearchResult[]> {
+  const supabase = await createClient()
+
+  // Directly query the table for featured items since rpcSearch might not support is_featured flag yet
+  const { data, error } = await supabase
+    .from('experiences')
+    .select(`
+      id,
+      title,
+      short_description,
+      price_amount,
+      price_currency,
+      average_rating,
+      review_count,
+      category_id,
+      destination_id,
+      experience_images(url, is_cover)
+    `)
+    .eq('category_id', categoryId)
+    .eq('status', 'active')
+    .eq('is_featured', true)
+    .limit(limit)
+
+  if (error || !data) return []
+
+  // Map to the expected type format
+  return (data as any[]).map(exp => ({
+    id: exp.id,
+    title: exp.title,
+    short_description: exp.short_description || '',
+    price_amount: Number(exp.price_amount) || 0,
+    price_currency: exp.price_currency || 'MXN',
+    average_rating: Number(exp.average_rating) || 0,
+    review_count: exp.review_count || 0,
+    category_id: exp.category_id,
+    destination_id: exp.destination_id,
+    cover_image_url: exp.experience_images?.find((img: any) => img.is_cover)?.url || exp.experience_images?.[0]?.url || null
+  } as unknown)) as ExperienceSearchResult[]
+}
