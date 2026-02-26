@@ -27,6 +27,11 @@ export function Footer() {
                   Cancun
                 </Link>
               </li>
+              <li>
+                <Link href="/destinations/cancun/info" className="hover:text-foreground">
+                  Info Cancun
+                </Link>
+              </li>
             </ul>
           </div>
 

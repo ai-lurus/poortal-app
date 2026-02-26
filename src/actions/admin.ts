@@ -138,6 +138,74 @@ export async function approveExperienceAction(
   return { success: 'Experiencia aprobada y publicada.' }
 }
 
+export async function addRecommendationAction(
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  const admin = await verifyAdmin()
+  if (!admin) return { error: 'No tienes permisos de administrador.' }
+
+  const destinationId = formData.get('destination_id') as string
+  const experienceId = formData.get('experience_id') as string
+
+  if (!destinationId || !experienceId) return { error: 'Datos incompletos.' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (admin.supabase as any)
+    .from('destination_recommendations')
+    .insert({ destination_id: destinationId, experience_id: experienceId })
+
+  if (error) return { error: 'Error al agregar recomendacion.' }
+
+  revalidatePath(`/admin/destinations`)
+  return { success: 'Recomendacion agregada.' }
+}
+
+export async function removeRecommendationAction(
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  const admin = await verifyAdmin()
+  if (!admin) return { error: 'No tienes permisos de administrador.' }
+
+  const destinationId = formData.get('destination_id') as string
+  const experienceId = formData.get('experience_id') as string
+
+  if (!destinationId || !experienceId) return { error: 'Datos incompletos.' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (admin.supabase as any)
+    .from('destination_recommendations')
+    .delete()
+    .eq('destination_id', destinationId)
+    .eq('experience_id', experienceId)
+
+  if (error) return { error: 'Error al eliminar recomendacion.' }
+
+  revalidatePath(`/admin/destinations`)
+  return { success: 'Recomendacion eliminada.' }
+}
+
+export async function toggleFeaturedAction(
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  const admin = await verifyAdmin()
+  if (!admin) return { error: 'No tienes permisos de administrador.' }
+
+  const experienceId = formData.get('experience_id') as string
+  const isFeatured = formData.get('is_featured') === 'true'
+
+  const { error } = await updateTable(admin.supabase, 'experiences', {
+    is_featured: !isFeatured,
+  }).eq('id', experienceId)
+
+  if (error) return { error: 'Error al actualizar estado featured.' }
+
+  revalidatePath('/admin/experiences')
+  return { success: !isFeatured ? 'Marcada como recomendada.' : 'Quitada de recomendadas.' }
+}
+
 export async function rejectExperienceAction(
   _prevState: AdminActionState,
   formData: FormData

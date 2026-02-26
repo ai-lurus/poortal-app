@@ -1,17 +1,87 @@
 'use client'
 
-import Link from 'next/link'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, Percent } from 'lucide-react'
+import { ChevronLeft, Percent, X, Loader2 } from 'lucide-react'
 import Image from 'next/image'
+import { useCartStore } from '@/stores/cart-store'
+import { createBookingFromCart } from '@/actions/bookings'
+import { HomeHeader } from '@/components/home/home-header'
+
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+function formatDate(dateStr: string) {
+  const d = new Date(dateStr + 'T00:00:00')
+  return `${d.getDate()} ${MONTH_LABELS[d.getMonth()]} ${d.getFullYear()}`
+}
+
+function formatTime(time: string) {
+  const [h, m] = time.split(':').map(Number)
+  const ampm = h >= 12 ? 'pm' : 'am'
+  const h12 = h % 12 || 12
+  return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`
+}
 
 export default function CartPage() {
   const router = useRouter()
+  const { items, removeItem, clearCart } = useCartStore()
+  const [agreed, setAgreed] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+
+  async function handleConfirm() {
+    if (!agreed || items.length === 0) return
+    setLoading(true)
+    setErrorMsg(null)
+    const result = await createBookingFromCart(
+      items.map((item) => ({
+        experienceId: item.experienceId,
+        availabilityId: item.availabilityId,
+        providerId: item.providerId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        currency: item.currency,
+        serviceDate: item.serviceDate,
+        serviceTime: item.serviceTime,
+        pricingType: item.pricingType,
+      }))
+    )
+    setLoading(false)
+    if (result.error) {
+      if (result.error === 'not_authenticated') {
+        setErrorMsg('Debes iniciar sesión para confirmar tu reserva.')
+      } else {
+        setErrorMsg('Hubo un error al procesar tu reserva. Intenta de nuevo.')
+      }
+      return
+    }
+    clearCart()
+    router.push('/success')
+  }
+
+  const currency = items[0]?.currency || 'MXN'
+
+  const fmt = (amount: number) =>
+    new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+    }).format(amount)
+
+  const subtotal = items.reduce((acc, item) => {
+    const itemTotal =
+      item.pricingType === 'per_person' ? item.unitPrice * item.quantity : item.unitPrice
+    return acc + itemTotal
+  }, 0)
+
+  const iva = subtotal * 0.16
+  const total = subtotal + iva
 
   return (
-    <div className="min-h-screen bg-[#FDFDFD] pb-32 flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 pt-6 pb-4 bg-white sticky top-0 z-10 border-b border-slate-100 mb-2">
+    <div className="bg-[#FDFDFD] pb-32 flex flex-col">
+      <HomeHeader />
+      {/* Mobile sub-header */}
+      <div className="flex items-center justify-between px-6 pt-6 pb-4 bg-white sticky top-0 z-10 border-b border-slate-100 mb-2 md:hidden">
         <button
           onClick={() => router.back()}
           className="p-2 -ml-2 text-slate-900 active:scale-95 transition-transform"
@@ -19,156 +89,194 @@ export default function CartPage() {
           <ChevronLeft className="h-8 w-8" strokeWidth={3} />
         </button>
         <div className="border border-slate-200 bg-white rounded-full px-12 py-3 shadow-sm">
-          <h1 className="text-base font-bold text-slate-800 tracking-wide uppercase">
-            CART
-          </h1>
+          <h1 className="text-base font-bold text-slate-800 tracking-wide uppercase">CART</h1>
         </div>
-        <div className="w-8"></div> {/* Spacer */}
+        <div className="w-8" />
       </div>
 
-      <main className="container mx-auto px-6 flex flex-col gap-5 mt-4 max-w-md">
+      {/* Desktop page title */}
+      <div className="hidden md:block container mx-auto max-w-5xl px-6 pt-8 pb-2">
+        <h1 className="text-2xl font-bold text-slate-800">Your Cart</h1>
+      </div>
 
-        {/* Cart Item 1 */}
-        <div className="flex bg-white border border-slate-200 rounded-lg shadow-sm p-4 relative">
-          <div className="w-24 h-24 bg-slate-200 rounded-lg shrink-0 overflow-hidden relative mr-4">
-            {/* Placeholder for Isla Mujeres Tour image */}
-            <div className="absolute inset-0 bg-blue-400 opacity-60 mix-blend-multiply"></div>
+      <main className="container mx-auto px-6 mt-4 max-w-md md:max-w-5xl">
+        {items.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <p className="text-sm text-slate-400">Tu carrito está vacío</p>
           </div>
-          <div className="flex flex-col flex-1 justify-between">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between w-[90%]">
-                <span className="text-xs font-bold text-slate-900 w-12 shrink-0">XP</span>
-                <span className="text-xs text-slate-700 flex-1 truncate">Isla Mujeres Tour</span>
+        ) : (
+          <div className="flex flex-col gap-5 md:flex-row md:items-start md:gap-10">
+            {/* Left col: Cart Items */}
+            <div className="flex flex-col gap-4 md:flex-1">
+              {items.map((item) => {
+                const itemTotal =
+                  item.pricingType === 'per_person'
+                    ? item.unitPrice * item.quantity
+                    : item.unitPrice
+
+                return (
+                  <div
+                    key={`${item.experienceId}-${item.serviceDate}`}
+                    className="flex bg-white border border-slate-200 rounded-lg shadow-sm p-4 relative"
+                  >
+                    <button
+                      onClick={() => removeItem(item.experienceId, item.serviceDate)}
+                      className="absolute top-2 right-2 p-1 text-slate-400 active:scale-95"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+
+                    <div className="w-24 h-24 bg-slate-100 rounded-lg shrink-0 overflow-hidden relative mr-4">
+                      {item.coverImageUrl ? (
+                        <Image
+                          src={item.coverImageUrl}
+                          alt={item.title}
+                          fill
+                          className="object-cover"
+                          sizes="96px"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-slate-200" />
+                      )}
+                    </div>
+
+                    <div className="flex flex-col flex-1 justify-between">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center w-[90%] gap-2">
+                          <span className="text-xs font-bold text-slate-900 w-12 shrink-0">XP</span>
+                          <span className="text-xs text-slate-700 flex-1 truncate">{item.title}</span>
+                        </div>
+                        <div className="flex items-center w-[90%] gap-2">
+                          <span className="text-xs font-bold text-slate-900 w-12 shrink-0">Date</span>
+                          <span className="text-xs text-slate-700 flex-1">{formatDate(item.serviceDate)}</span>
+                        </div>
+                        {item.serviceTime && (
+                          <div className="flex items-center w-[90%] gap-2">
+                            <span className="text-xs font-bold text-slate-900 w-12 shrink-0">Time</span>
+                            <span className="text-xs text-slate-700 flex-1">{formatTime(item.serviceTime)}</span>
+                          </div>
+                        )}
+                        {item.pricingType === 'per_person' && (
+                          <div className="flex items-center w-[90%] gap-2">
+                            <span className="text-xs font-bold text-slate-900 w-12 shrink-0">Qty</span>
+                            <span className="text-xs text-slate-700 flex-1">× {item.quantity}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between mt-3">
+                        <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">TOTAL:</span>
+                        <span className="text-sm font-bold text-slate-800">{fmt(itemTotal)}</span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Right col: Checkout summary + controls */}
+            <div className="flex flex-col gap-5 md:w-96 md:sticky md:top-24">
+              {/* Checkout Ticket */}
+              <div className="border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden flex flex-col mt-2 md:mt-0">
+                <div className="py-3 px-4 text-center">
+                  <h3 className="font-bold text-sm text-slate-800">Checkout Ticket</h3>
+                </div>
+                <div className="border-t border-dashed border-slate-300 mx-4" />
+                <div className="px-8 py-4 flex flex-col gap-2">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-semibold text-slate-700 w-24 text-right">Experiences:</span>
+                    <span className="text-slate-600 w-20 text-left">{items.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-semibold text-slate-700 w-24 text-right">Discount:</span>
+                    <span className="text-slate-600 w-20 text-left">0</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-semibold text-slate-700 w-24 text-right">Subtotal:</span>
+                    <span className="text-slate-600 w-20 text-left">{fmt(subtotal)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-semibold text-slate-700 w-24 text-right">Service Fee:</span>
+                    <span className="text-slate-600 w-20 text-left">0</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-semibold text-slate-700 w-24 text-right">IVA (16%):</span>
+                    <span className="text-slate-600 w-20 text-left">{fmt(iva)}</span>
+                  </div>
+                </div>
+                <div className="border-t border-dashed border-slate-300 mx-4" />
+                <div className="py-4 px-8 flex justify-center items-center gap-4">
+                  <span className="font-bold text-sm text-slate-800 tracking-wide uppercase">TOTAL:</span>
+                  <span className="font-bold text-sm text-slate-800">{fmt(total)}</span>
+                </div>
               </div>
-              <div className="flex items-center justify-between w-[90%]">
-                <span className="text-xs font-bold text-slate-900 w-12 shrink-0">Date</span>
-                <span className="text-xs text-slate-700 flex-1">15/06/22</span>
+
+              {/* Coupon Code */}
+              <div className="flex justify-center">
+                <button className="flex items-center gap-1.5 active:scale-95 transition-transform">
+                  <Percent className="h-4 w-4 text-teal-600" strokeWidth={3} />
+                  <span className="text-[10px] font-medium text-slate-800 underline decoration-slate-800 underline-offset-2">
+                    coupon code
+                  </span>
+                </button>
               </div>
-              <div className="flex items-center justify-between w-[90%]">
-                <span className="text-xs font-bold text-slate-900 w-12 shrink-0">Time</span>
-                <span className="text-xs text-slate-700 flex-1">8:00 PM</span>
+
+              {/* Terms */}
+              <div className="flex justify-center px-4">
+                <label className="flex items-center gap-3 cursor-pointer" onClick={() => setAgreed((v) => !v)}>
+                  <div
+                    className={`w-5 h-5 border-2 rounded-sm flex items-center justify-center shrink-0 transition-colors ${
+                      agreed ? 'border-teal-600 bg-teal-600' : 'border-[#A8CCC9] bg-white'
+                    }`}
+                  >
+                    {agreed && <span className="text-white text-[10px] font-bold leading-none">✓</span>}
+                  </div>
+                  <span className="text-[11px] text-slate-800 font-medium">
+                    I have read and agree to this{' '}
+                    <span className="underline font-bold decoration-slate-800">Terms and Conditions</span>
+                  </span>
+                </label>
               </div>
-            </div>
-            {/* Item Total */}
-            <div className="flex items-center justify-between mt-4">
-              <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">TOTAL:</span>
-              <span className="text-sm font-bold text-slate-800">$ 600.00 USD</span>
-            </div>
-          </div>
-        </div>
 
-        {/* Cart Item 2 */}
-        <div className="flex bg-white border border-slate-200 rounded-lg shadow-sm p-4 relative">
-          <div className="w-24 h-24 bg-slate-200 rounded-lg shrink-0 overflow-hidden relative mr-4">
-            {/* Placeholder for Isla Mujeres Tour image */}
-            <div className="absolute inset-0 bg-blue-400 opacity-60 mix-blend-multiply"></div>
-          </div>
-          <div className="flex flex-col flex-1 justify-between">
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center justify-between w-[90%]">
-                <span className="text-xs font-bold text-slate-900 w-12 shrink-0">XP</span>
-                <span className="text-xs text-slate-700 flex-1 truncate">Isla Mujeres Tour</span>
+              {/* Payment Options */}
+              <div className="flex flex-col items-center mb-4">
+                <span className="text-sm font-bold text-slate-800 mb-4">Select payment option</span>
+                <div className="flex items-center justify-center gap-4">
+                  <div className="w-16 h-10 bg-white border border-slate-200 shadow-sm rounded-full flex items-center justify-center overflow-hidden">
+                    <div className="w-10 h-10 bg-black rounded-full scale-[1.2] translate-y-2 translate-x-1" />
+                  </div>
+                  <div className="w-16 h-10 bg-white border border-slate-200 shadow-sm rounded-full flex items-center justify-center overflow-hidden relative">
+                    <div className="w-[120%] h-3 border-t-[3px] border-slate-700 rounded-t-[50%] -translate-y-1" />
+                    <div className="w-[120%] h-3 border-b-[3px] border-slate-700 rounded-b-[50%] translate-y-1 absolute" />
+                  </div>
+                  <div className="w-16 h-10 bg-white border border-slate-200 shadow-sm rounded-full flex flex-col items-center justify-center">
+                    <span className="font-extrabold text-[10px] italic">VISA</span>
+                    <div className="flex gap-1 mt-0.5">
+                      <div className="w-2 h-0.5 bg-slate-400" />
+                      <div className="w-2 h-0.5 bg-slate-400" />
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div className="flex items-center justify-between w-[90%]">
-                <span className="text-xs font-bold text-slate-900 w-12 shrink-0">Date</span>
-                <span className="text-xs text-slate-700 flex-1">15/06/22</span>
-              </div>
-              <div className="flex items-center justify-between w-[90%]">
-                <span className="text-xs font-bold text-slate-900 w-12 shrink-0">Time</span>
-                <span className="text-xs text-slate-700 flex-1">8:00 PM</span>
-              </div>
-            </div>
-            {/* Item Total */}
-            <div className="flex items-center justify-between mt-4">
-              <span className="text-xs font-bold text-slate-800 uppercase tracking-wide">TOTAL:</span>
-              <span className="text-sm font-bold text-slate-800">$ 600.00 USD</span>
-            </div>
-          </div>
-        </div>
 
-        {/* Checkout Ticket Card */}
-        <div className="border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden flex flex-col mt-2">
-          <div className="py-3 px-4 text-center">
-            <h3 className="font-bold text-sm text-slate-800">Checkout Ticket</h3>
-          </div>
-          {/* Dashed Line */}
-          <div className="border-t border-dashed border-slate-300 mx-4"></div>
+              {/* Error message */}
+              {errorMsg && (
+                <p className="text-center text-xs text-red-500 font-medium">{errorMsg}</p>
+              )}
 
-          <div className="px-8 py-4 flex flex-col gap-2">
-            <div className="flex justify-between items-center text-xs">
-              <span className="font-semibold text-slate-700 w-24 text-right">Experiences:</span>
-              <span className="text-slate-600 w-20 text-left">4</span>
-            </div>
-            <div className="flex justify-between items-center text-xs">
-              <span className="font-semibold text-slate-700 w-24 text-right">Discount:</span>
-              <span className="text-slate-600 w-20 text-left">0</span>
-            </div>
-            <div className="flex justify-between items-center text-xs">
-              <span className="font-semibold text-slate-700 w-24 text-right">Subtotal:</span>
-              <span className="text-slate-600 w-20 text-left">$ 504.00</span>
-            </div>
-            <div className="flex justify-between items-center text-xs">
-              <span className="font-semibold text-slate-700 w-24 text-right">Service Fee:</span>
-              <span className="text-slate-600 w-20 text-left">0</span>
-            </div>
-            <div className="flex justify-between items-center text-xs">
-              <span className="font-semibold text-slate-700 w-24 text-right">IVA (16%):</span>
-              <span className="text-slate-600 w-20 text-left">$ 96.00</span>
-            </div>
-          </div>
-
-          {/* Dashed Line */}
-          <div className="border-t border-dashed border-slate-300 mx-4"></div>
-
-          <div className="py-4 px-8 flex justify-center items-center gap-4">
-            <span className="font-bold text-sm text-slate-800 tracking-wide uppercase">TOTAL:</span>
-            <span className="font-bold text-sm text-slate-800">$ 600.00 USD</span>
-          </div>
-        </div>
-
-        {/* Coupon Code */}
-        <div className="flex justify-center mt-2">
-          <button className="flex items-center gap-1.5 active:scale-95 transition-transform">
-            <Percent className="h-4 w-4 text-teal-600" strokeWidth={3} />
-            <span className="text-[10px] font-medium text-slate-800 underline decoration-slate-800 underline-offset-2">coupon code</span>
-          </button>
-        </div>
-
-        {/* Terms and conditions */}
-        <div className="flex justify-center mt-2 px-4">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <div className="w-5 h-5 border-2 border-[#A8CCC9] rounded-sm flex items-center justify-center bg-white shrink-0">
-              {/* Empty checkbox visually */}
-            </div>
-            <span className="text-[11px] text-slate-800 font-medium">
-              I have read and agree to this <span className="underline font-bold decoration-slate-800">Terms and Conditions</span>
-            </span>
-          </label>
-        </div>
-
-        {/* Payment Options */}
-        <div className="flex flex-col items-center mt-6 mb-8">
-          <span className="text-sm font-bold text-slate-800 mb-4">Select payment option</span>
-          <div className="flex items-center justify-center gap-4">
-            {/* Mock Apple Pay */}
-            <div className="w-16 h-10 bg-white border border-slate-200 shadow-sm rounded-full flex items-center justify-center overflow-hidden">
-              <div className="w-10 h-10 bg-black rounded-full scale-[1.2] translate-y-2 translate-x-1"></div>
-            </div>
-            {/* Mock Mercado Pago */}
-            <div className="w-16 h-10 bg-white border border-slate-200 shadow-sm rounded-full flex items-center justify-center overflow-hidden">
-              <div className="w-[120%] h-3 border-t-[3px] border-slate-700 rounded-t-[50%] -translate-y-1"></div>
-              <div className="w-[120%] h-3 border-b-[3px] border-slate-700 rounded-b-[50%] translate-y-1 absolute"></div>
-            </div>
-            {/* Mock Visa/Mastercard */}
-            <div className="w-16 h-10 bg-white border border-slate-200 shadow-sm rounded-full flex flex-col items-center justify-center">
-              <span className="font-extrabold text-[10px] italic">VISA</span>
-              <div className="flex gap-1 mt-0.5">
-                <div className="w-2 h-0.5 bg-slate-400"></div>
-                <div className="w-2 h-0.5 bg-slate-400"></div>
+              {/* Confirm button */}
+              <div className="flex justify-center mb-8">
+                <button
+                  onClick={handleConfirm}
+                  disabled={!agreed || loading}
+                  className="bg-teal-700 disabled:bg-slate-300 text-white rounded-[2rem] px-14 py-3.5 text-base font-semibold active:scale-95 transition-all shadow-md flex items-center gap-2"
+                >
+                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {loading ? 'Procesando...' : 'Confirm Booking'}
+                </button>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </main>
     </div>
   )

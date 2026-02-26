@@ -1,5 +1,6 @@
 import { Header } from '@/components/layout/header'
 import { Footer } from '@/components/layout/footer'
+import { BottomNav } from '@/components/layout/bottom-nav'
 
 export default function TouristLayout({
   children,
@@ -8,13 +9,16 @@ export default function TouristLayout({
 }) {
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
-      <main className="flex-1">
-        <div className="container mx-auto px-4 py-8">
-          {children}
-        </div>
+      <div className="hidden md:block">
+        <Header />
+      </div>
+      <main className="flex-1 pb-16 md:pb-0">
+        {children}
       </main>
-      <Footer />
+      <div className="hidden md:block">
+        <Footer />
+      </div>
+      <BottomNav />
     </div>
   )
 }

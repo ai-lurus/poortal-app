@@ -1,54 +1,76 @@
-import Link from 'next/link'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { Ticket } from 'lucide-react'
-import { ROUTES } from '@/lib/constants'
+import { createClient } from '@/lib/supabase/server'
+import { HomeHeader } from '@/components/home/home-header'
+import { WalletTickets } from './wallet-tickets'
 
-export const metadata = {
-  title: 'Mi Wallet',
-}
+export const metadata = { title: 'Mi Wallet' }
 
-export default function WalletPage() {
+export default async function WalletPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    return (
+      <>
+        <HomeHeader />
+        {/* Mobile empty */}
+        <div className="flex flex-col items-center justify-center py-20 text-center md:hidden">
+          <Ticket className="h-12 w-12 text-muted-foreground mb-4" />
+          <p className="text-sm text-slate-500">Inicia sesión para ver tus tickets</p>
+        </div>
+        {/* Desktop empty */}
+        <div className="hidden md:flex flex-col items-center justify-center py-32 text-center">
+          <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mb-6">
+            <Ticket className="h-9 w-9 text-slate-300" />
+          </div>
+          <h2 className="text-xl font-semibold text-slate-700 mb-2">Sign in to view your tickets</h2>
+          <p className="text-slate-400">Your booked experiences will appear here.</p>
+        </div>
+      </>
+    )
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: tickets } = await (supabase as any)
+    .from('tickets')
+    .select(`
+      id,
+      qr_code,
+      status,
+      service_date,
+      service_time,
+      quantity,
+      experiences (
+        title
+      ),
+      provider_profiles (
+        business_name
+      )
+    `)
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+
   return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-3xl font-bold">Mi Wallet</h1>
-        <p className="mt-1 text-muted-foreground">
-          Tus boletos digitales y codigos QR para acceder a tus experiencias
-        </p>
+    <div className="bg-background pb-20">
+      {/* Mobile header */}
+      <HomeHeader />
+
+      {/* Desktop page hero */}
+      <div className="hidden md:block border-b bg-white">
+        <div className="container mx-auto max-w-6xl px-8 py-8">
+          <h1 className="text-3xl font-bold text-slate-800">My Wallet</h1>
+          <p className="text-slate-500 mt-1">All your booked experiences in one place</p>
+        </div>
       </div>
 
-      {/* Empty state */}
-      <div className="flex flex-col items-center justify-center py-20">
-        <Ticket className="h-16 w-16 text-muted-foreground" />
-        <h2 className="mt-4 text-xl font-semibold">No tienes boletos aun</h2>
-        <p className="mt-2 max-w-sm text-center text-muted-foreground">
-          Cuando completes una reserva, tus boletos digitales y codigos QR
-          aparecaran aqui para un acceso rapido
-        </p>
-        <Button className="mt-6" asChild>
-          <Link href={ROUTES.explore}>Explorar experiencias</Link>
-        </Button>
+      {/* Mobile content */}
+      <div className="md:hidden container mx-auto max-w-md px-6 pt-4">
+        <WalletTickets tickets={tickets ?? []} />
       </div>
 
-      {/* Placeholder ticket cards - hidden by default, shown when tickets exist */}
-      {/* Example of how a ticket card would look */}
-      <div className="hidden">
-        <Card>
-          <CardContent className="flex items-center gap-4 p-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-lg bg-muted">
-              <Ticket className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <div className="flex-1 space-y-1">
-              <h3 className="font-semibold">Nombre de Experiencia</h3>
-              <p className="text-sm text-muted-foreground">
-                Fecha del servicio
-              </p>
-            </div>
-            <Badge>Activo</Badge>
-          </CardContent>
-        </Card>
+      {/* Desktop content */}
+      <div className="hidden md:block container mx-auto max-w-6xl px-8 pt-8">
+        <WalletTickets tickets={tickets ?? []} />
       </div>
     </div>
   )

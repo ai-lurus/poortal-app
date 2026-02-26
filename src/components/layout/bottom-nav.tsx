@@ -5,17 +5,21 @@ import { usePathname } from 'next/navigation'
 import { Bell, Wallet, Info } from 'lucide-react'
 import { ROUTES } from '@/lib/constants'
 import { cn } from '@/lib/utils'
+import { useDestinationStore } from '@/stores/destination-store'
 
 export function BottomNav() {
   const pathname = usePathname()
+  const activeSlug = useDestinationStore((s) => s.activeSlug)
 
   const isWallet = pathname.startsWith('/wallet') || pathname.startsWith('/bookings')
   const isInfo = pathname.endsWith('/info')
 
-  // Extract destination slug for the info link
+  // Hide on booking flow — it has its own bottom bar
+  if (pathname.endsWith('/book')) return null
+
+  // Extract destination slug from URL, fallback to last visited destination
   const match = pathname.match(/^\/destinations\/([^\/]+)/)
-  const slug = match ? match[1] : 'cancun'
-  const infoHref = ROUTES.destinationInfo(slug)
+  const infoHref = ROUTES.destinationInfo(match ? match[1] : activeSlug)
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t bg-background pb-[env(safe-area-inset-bottom)] md:hidden">

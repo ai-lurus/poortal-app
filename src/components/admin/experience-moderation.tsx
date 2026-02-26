@@ -1,7 +1,7 @@
 'use client'
 
 import { useActionState } from 'react'
-import { approveExperienceAction, rejectExperienceAction, type AdminActionState } from '@/actions/admin'
+import { approveExperienceAction, rejectExperienceAction, toggleFeaturedAction, type AdminActionState } from '@/actions/admin'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -11,13 +11,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { Compass, CheckCircle2, XCircle } from 'lucide-react'
+import { Compass, CheckCircle2, XCircle, Star } from 'lucide-react'
 
 type ExperienceRow = {
   id: string
   title: string
   slug: string
   status: string
+  is_featured?: boolean
   price_amount: number
   price_currency: string
   created_at: string
@@ -78,9 +79,13 @@ function ExperienceRow({
     rejectExperienceAction,
     {}
   )
+  const [featuredState, featuredAction, isTogglingFeatured] = useActionState<AdminActionState, FormData>(
+    toggleFeaturedAction,
+    {}
+  )
 
   const status = statusLabels[experience.status] || { label: experience.status, variant: 'outline' as const }
-  const message = approveState.success || approveState.error || rejectState.success || rejectState.error
+  const message = approveState.success || approveState.error || rejectState.success || rejectState.error || featuredState.success || featuredState.error
 
   const formatPrice = new Intl.NumberFormat('es-MX', {
     style: 'currency',
@@ -105,8 +110,7 @@ function ExperienceRow({
           <Badge variant={status.variant}>{status.label}</Badge>
         </div>
       </CardHeader>
-      {(showActions || message) && (
-        <CardContent className="pt-0 space-y-3">
+      <CardContent className="pt-0 space-y-3">
           {message && (
             <div className={`rounded-md p-2 text-sm ${
               approveState.success || rejectState.success
@@ -140,8 +144,23 @@ function ExperienceRow({
               </form>
             </div>
           )}
+
+          {/* Featured toggle — visible for active experiences */}
+          {experience.status === 'active' && (
+            <form action={featuredAction}>
+              <input type="hidden" name="experience_id" value={experience.id} />
+              <input type="hidden" name="is_featured" value={String(experience.is_featured ?? false)} />
+              <Button
+                variant={experience.is_featured ? 'default' : 'outline'}
+                size="sm"
+                disabled={isTogglingFeatured}
+              >
+                <Star className={`mr-1 h-4 w-4 ${experience.is_featured ? 'fill-current' : ''}`} />
+                {experience.is_featured ? 'En recomendaciones' : 'Agregar a recomendaciones'}
+              </Button>
+            </form>
+          )}
         </CardContent>
-      )}
     </Card>
   )
 }

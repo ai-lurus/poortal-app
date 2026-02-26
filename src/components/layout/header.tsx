@@ -1,7 +1,9 @@
 "use client"
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/use-auth'
+import { useDestinationStore } from '@/stores/destination-store'
 import { signOutAction } from '@/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -32,6 +34,10 @@ import { useCartStore } from '@/stores/cart-store'
 export function Header() {
   const { user, profile, loading } = useAuth()
   const itemCount = useCartStore((s) => s.items.length)
+  const pathname = usePathname()
+  const activeSlug = useDestinationStore((s) => s.activeSlug)
+  const slugMatch = pathname.match(/^\/destinations\/([^\/]+)/)
+  const infoHref = ROUTES.destinationInfo(slugMatch ? slugMatch[1] : activeSlug)
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -54,6 +60,12 @@ export function Header() {
             className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
             Cancun
+          </Link>
+          <Link
+            href={infoHref}
+            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Info
           </Link>
         </nav>
 
@@ -175,6 +187,9 @@ export function Header() {
                 </Link>
                 <Link href={ROUTES.destination('cancun')} className="text-lg font-medium">
                   Cancun
+                </Link>
+                <Link href={infoHref} className="text-lg font-medium">
+                  Info
                 </Link>
                 {user && profile && (
                   <>

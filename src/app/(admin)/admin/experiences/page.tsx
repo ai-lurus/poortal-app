@@ -14,6 +14,7 @@ type ExperienceRow = {
   title: string
   slug: string
   status: string
+  is_featured: boolean
   price_amount: number
   price_currency: string
   created_at: string
@@ -27,17 +28,17 @@ export default async function AdminExperiencesPage() {
   const [{ data: pending }, { data: active }, { data: rejected }] = await Promise.all([
     supabase
       .from('experiences')
-      .select('id, title, slug, status, price_amount, price_currency, created_at, provider_profiles (business_name), categories (name)')
+      .select('id, title, slug, status, is_featured, price_amount, price_currency, created_at, provider_profiles (business_name), categories (name)')
       .eq('status', 'pending_review')
       .order('created_at', { ascending: false }),
     supabase
       .from('experiences')
-      .select('id, title, slug, status, price_amount, price_currency, created_at, provider_profiles (business_name), categories (name)')
+      .select('id, title, slug, status, is_featured, price_amount, price_currency, created_at, provider_profiles (business_name), categories (name)')
       .eq('status', 'active')
       .order('created_at', { ascending: false }),
     supabase
       .from('experiences')
-      .select('id, title, slug, status, price_amount, price_currency, created_at, provider_profiles (business_name), categories (name)')
+      .select('id, title, slug, status, is_featured, price_amount, price_currency, created_at, provider_profiles (business_name), categories (name)')
       .in('status', ['rejected', 'draft', 'paused'])
       .order('created_at', { ascending: false }),
   ])

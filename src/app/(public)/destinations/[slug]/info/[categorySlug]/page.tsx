@@ -5,7 +5,7 @@ import { getDestinationBySlug } from '@/queries/destinations'
 import { ROUTES } from '@/lib/constants'
 import { InfoCard } from '@/components/destinations/info-card'
 import { LocalTipCard } from '@/components/destinations/local-tip-card'
-import { RestaurantCard } from '@/components/destinations/restaurant-card'
+
 import { cn } from '@/lib/utils'
 
 import {
@@ -20,10 +20,26 @@ import {
     HeartPulse,
     Star,
     Church,
-    PawPrint
+    PawPrint,
+    Compass,
+    Waves,
+    Ticket,
+    Car,
+    Dumbbell,
+    ShoppingBag,
+    Heart,
+    Sparkles,
 } from 'lucide-react'
 import { getFeaturedExperiencesByCategory } from '@/queries/experiences'
 import { getCategoryBySlug } from '@/queries/categories'
+
+// Categorías que muestran experiencias reales desde la DB
+const RECOMMENDATION_SLUGS = new Set([
+    // DB-native slugs
+    'food', 'party', 'culture', 'tours', 'sea', 'wellness', 'ride', 'stay', 'sports', 'shopping',
+    // Legacy slugs (kept for backward compat)
+    'restaurants', 'night-life', 'attractions',
+])
 
 // Define a type for our category data to avoid 'any'
 type CategoryItem = {
@@ -271,85 +287,98 @@ const CATEGORY_DATA: Record<string, CategoryData> = {
             }
         ]
     },
+    // DB-native slugs
+    'food': {
+        title: 'food',
+        icon: Utensils,
+        color: 'text-teal-700',
+        subtitle: 'Only the best',
+        items: []
+    },
+    'party': {
+        title: 'party',
+        icon: Moon,
+        color: 'text-indigo-600',
+        subtitle: 'Dance all night',
+        items: []
+    },
+    'culture': {
+        title: 'culture',
+        icon: Landmark,
+        color: 'text-stone-800',
+        subtitle: 'Must see places',
+        items: []
+    },
+    'ride': {
+        title: 'ride',
+        icon: Car,
+        color: 'text-rose-800',
+        subtitle: 'Get around',
+        items: []
+    },
+    'stay': {
+        title: 'stay',
+        icon: Heart,
+        color: 'text-pink-500',
+        subtitle: 'Rest well',
+        items: []
+    },
+    'sports': {
+        title: 'sports',
+        icon: Dumbbell,
+        color: 'text-orange-500',
+        subtitle: 'Stay active',
+        items: []
+    },
+    'shopping': {
+        title: 'shopping',
+        icon: ShoppingBag,
+        color: 'text-fuchsia-500',
+        subtitle: 'Find deals',
+        items: []
+    },
+    // Legacy slugs mapped
+    'tours': {
+        title: 'tours',
+        icon: Compass,
+        color: 'text-indigo-500',
+        subtitle: 'Best experiences',
+        items: []
+    },
+    'sea': {
+        title: 'sea',
+        icon: Waves,
+        color: 'text-cyan-500',
+        subtitle: 'Water adventures',
+        items: []
+    },
+    'wellness': {
+        title: 'wellness',
+        icon: Sparkles,
+        color: 'text-emerald-500',
+        subtitle: 'Relax and heal',
+        items: []
+    },
     'restaurants': {
         title: 'restaurants',
         icon: Utensils,
         color: 'text-teal-700',
         subtitle: 'Only the best',
-        items: [
-            {
-                title: 'ROLANDIS',
-                images: 3,
-                moreInfoLink: '#',
-                description: ['Lorem Imposum, lorem', 'lorem lorem lorem lorem', 'Lorem Imposum, lorem', 'lorem lorem lorem lorem']
-            },
-            {
-                title: 'BOBBA GUMP',
-                images: 3,
-                moreInfoLink: '#',
-                description: ['Lorem Imposum, lorem', 'lorem lorem lorem lorem', 'Lorem Imposum, lorem', 'lorem lorem lorem lorem']
-            },
-            {
-                title: 'PORFIRIOS',
-                images: 3,
-                moreInfoLink: '#',
-                description: ['Lorem Imposum, lorem', 'lorem lorem lorem lorem', 'Lorem Imposum, lorem', 'lorem lorem lorem lorem']
-            }
-        ]
+        items: []
     },
     'night-life': {
         title: 'nightlife',
         icon: Moon,
         color: 'text-indigo-600',
         subtitle: 'Dance all night',
-        items: [
-            {
-                title: 'COCO BONGO',
-                images: 3,
-                moreInfoLink: '#',
-                description: ['Lorem Imposum, lorem', 'lorem lorem lorem lorem', 'Lorem Imposum, lorem', 'lorem lorem lorem lorem']
-            },
-            {
-                title: 'MANDALA',
-                images: 3,
-                moreInfoLink: '#',
-                description: ['Lorem Imposum, lorem', 'lorem lorem lorem lorem', 'Lorem Imposum, lorem', 'lorem lorem lorem lorem']
-            }
-        ]
-    },
-    'wellness': {
-        title: 'wellness',
-        icon: HeartPulse,
-        color: 'text-rose-500',
-        subtitle: 'Relax and heal',
-        items: [
-            {
-                title: 'SPA RESORT',
-                images: 3,
-                moreInfoLink: '#',
-                description: ['Lorem Imposum, lorem', 'lorem lorem lorem lorem', 'Lorem Imposum, lorem', 'lorem lorem lorem lorem']
-            }
-        ]
+        items: []
     },
     'attractions': {
         title: 'attractions',
         icon: Star,
         color: 'text-amber-500',
         subtitle: 'Must see places',
-        items: [
-            {
-                title: 'CHICHEN ITZA',
-                images: 3,
-                moreInfoLink: '#',
-                description: ['Lorem Imposum, lorem', 'lorem lorem lorem lorem', 'Lorem Imposum, lorem', 'lorem lorem lorem lorem']
-            },
-            {
-                title: 'XCARET',
-                images: 3,
-                moreInfoLink: '#',
-                description: ['Lorem Imposum, lorem', 'lorem lorem lorem lorem', 'Lorem Imposum, lorem', 'lorem lorem lorem lorem']
-            }
-        ]
+        items: []
     },
     'religion': {
         title: 'religion',
@@ -454,72 +483,31 @@ export default async function DestinationCategoryInfoPage({
 
     if (!destination) notFound()
 
-    // Map dynamic category slugs directly to their top-level pages
-    if (categorySlug === 'restaurantes' || categorySlug === 'restaurants') {
-        const { redirect } = await import('next/navigation')
-        redirect('/restaurants')
-    }
-
-    if (categorySlug === 'tours' || categorySlug === 'experiencias-culturales') {
-        const { redirect } = await import('next/navigation')
-        redirect('/tours')
-    }
-
-    if (categorySlug === 'sea' || categorySlug === 'rental') {
-        const { redirect } = await import('next/navigation')
-        redirect('/rental')
-    }
-
-    if (categorySlug === 'night-life' || categorySlug === 'nightlife') {
-        const { redirect } = await import('next/navigation')
-        redirect('/nightlife')
-    }
-
-    if (categorySlug === 'wellness' || categorySlug === 'spa') {
-        const { redirect } = await import('next/navigation')
-        // Currently the Spa grid is at /wellness/spa but we might just redirect to the top wellness categorize
-        redirect('/wellness')
-    }
-
-    if (categorySlug === 'attractions' || categorySlug === 'culture') {
-        const { redirect } = await import('next/navigation')
-        redirect('/culture')
-    }
-
+    const isRecommendation = RECOMMENDATION_SLUGS.has(categorySlug)
     const categoryData = CATEGORY_DATA[categorySlug]
-    const dbCategory = await getCategoryBySlug(categorySlug)
-    const featuredItems = dbCategory ? await getFeaturedExperiencesByCategory(dbCategory.id) : []
 
-    const hasFeaturedItems = featuredItems && featuredItems.length > 0
-    const fallbackItems = categoryData?.items || []
-
-    // Fallback if category doesn't have mock data AND no real records yet
     if (!categoryData) {
         return (
             <div className="min-h-screen bg-background flex flex-col items-center justify-center pb-24 px-6 text-center">
                 <h1 className="text-2xl font-bold mb-4">Coming Soon</h1>
                 <p className="text-muted-foreground mb-8">Information for &quot;{categorySlug}&quot; is not available yet.</p>
-                <Link
-                    href={ROUTES.destinationInfo(slug)}
-                    className="flex items-center text-primary font-medium"
-                >
+                <Link href={ROUTES.destinationInfo(slug)} className="flex items-center text-primary font-medium">
                     <ChevronLeft className="h-5 w-5 mr-1" /> Back to Info
                 </Link>
             </div>
         )
     }
 
-    const { title, icon: Icon, color, subtitle } = categoryData || {
-        title: dbCategory?.name || categorySlug,
-        icon: Star,
-        color: 'text-amber-500',
-        subtitle: 'Featured Recommendations'
-    }
+    // For recommendation categories fetch real experiences from DB
+    const dbCategory = isRecommendation ? await getCategoryBySlug(categorySlug) : null
+    const experiences = dbCategory ? await getFeaturedExperiencesByCategory(dbCategory.id) : []
+
+    const { title, icon: Icon, color, subtitle } = categoryData
 
     return (
-        <div className="min-h-screen bg-background pb-24">
-            {/* Header Area */}
-            <div className="pt-6 px-6">
+        <div className="bg-background pb-24">
+            {/* Header */}
+            <div className="pt-6 px-6 md:container md:mx-auto md:max-w-3xl">
                 <Link
                     href={ROUTES.destinationInfo(slug)}
                     className="inline-flex items-center justify-center p-2 -ml-2 mb-2 text-slate-900 active:scale-95 transition-transform"
@@ -534,60 +522,95 @@ export default async function DestinationCategoryInfoPage({
                     </h1>
                 </div>
 
-                <h2 className="text-teal-700 font-semibold mb-6">
-                    {subtitle}
-                </h2>
+                <h2 className="text-teal-700 font-semibold mb-6">{subtitle}</h2>
             </div>
 
-            {/* List of Cards */}
-            <main className="container mx-auto max-w-md px-4 flex flex-col gap-4">
-                {hasFeaturedItems ? (
-                    featuredItems.map((item, idx) => (
-                        <RestaurantCard
-                            key={item.id || idx}
-                            title={item.title}
-                            description={[item.short_description || '']}
-                            images={3} // Hardcoded layout grid to match mockups for now
-                            moreInfoLink={`/${categorySlug}/${item.id}`} // We assume the path matches the category
-                        />
-                    ))
+            <main className="container mx-auto max-w-md md:max-w-3xl px-4">
+                {isRecommendation ? (
+                    experiences.length > 0 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {experiences.map((exp) => {
+                                const formattedPrice = new Intl.NumberFormat('es-MX', {
+                                    style: 'currency',
+                                    currency: exp.price_currency || 'MXN',
+                                    minimumFractionDigits: 0,
+                                }).format(Number(exp.price_amount))
+
+                                return (
+                                    <div key={exp.id} className="flex bg-white rounded-xl border shadow-sm p-4 gap-4">
+                                        {/* Image */}
+                                        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                                            {exp.cover_image_url ? (
+                                                <img
+                                                    src={exp.cover_image_url}
+                                                    alt={exp.title}
+                                                    className="h-full w-full object-cover"
+                                                />
+                                            ) : (
+                                                <div className="h-full w-full bg-slate-100" />
+                                            )}
+                                        </div>
+
+                                        {/* Content */}
+                                        <div className="flex flex-1 flex-col justify-between min-w-0">
+                                            <div>
+                                                <h3 className="font-bold text-sm text-slate-700 uppercase tracking-wide leading-tight line-clamp-2">
+                                                    {exp.title}
+                                                </h3>
+                                                {exp.short_description && (
+                                                    <p className="mt-1 text-[10px] text-slate-500 line-clamp-2 leading-tight">
+                                                        {exp.short_description}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center justify-between mt-2">
+                                                <span className="text-sm font-bold text-teal-700">{formattedPrice}</span>
+                                                <Link
+                                                    href={ROUTES.experience(exp.id)}
+                                                    className="flex items-center gap-1.5 bg-teal-700 text-white rounded-md px-4 py-1.5 text-xs font-semibold active:scale-95 transition-transform"
+                                                >
+                                                    <Ticket className="h-3.5 w-3.5" />
+                                                    book
+                                                </Link>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-16 text-center">
+                            <Icon className={cn("h-12 w-12 mb-3 opacity-20", color)} strokeWidth={1} />
+                            <p className="text-sm text-muted-foreground">No hay experiencias disponibles aun</p>
+                        </div>
+                    )
                 ) : (
-                    fallbackItems.map((item: CategoryItem, idx: number) => {
-                        if (categorySlug === 'local-tips') {
+                    /* Static info content */
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {categoryData.items.map((item: CategoryItem, idx: number) => {
+                            if (categorySlug === 'local-tips') {
+                                return (
+                                    <LocalTipCard
+                                        key={idx}
+                                        title={item.title}
+                                        author={item.author || ''}
+                                        date={item.date || ''}
+                                        description={item.description}
+                                        images={item.images}
+                                    />
+                                )
+                            }
                             return (
-                                <LocalTipCard
+                                <InfoCard
                                     key={idx}
                                     title={item.title}
-                                    author={item.author || ''}
-                                    date={item.date || ''}
                                     description={item.description}
-                                    images={item.images}
+                                    visual={item.visual}
+                                    actions={item.actions}
                                 />
                             )
-                        }
-
-                        if (['restaurants', 'night-life', 'wellness', 'attractions'].includes(categorySlug)) {
-                            return (
-                                <RestaurantCard
-                                    key={idx}
-                                    title={item.title}
-                                    description={item.description}
-                                    images={item.images}
-                                    moreInfoLink={item.moreInfoLink}
-                                />
-                            )
-                        }
-
-                        return (
-                            <InfoCard
-                                key={idx}
-                                title={item.title}
-                                description={item.description}
-                                visual={item.visual}
-                                actions={item.actions}
-                            />
-                        )
-                    })
+                        })}
+                    </div>
                 )}
             </main>
         </div>

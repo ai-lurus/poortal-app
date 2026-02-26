@@ -145,6 +145,54 @@ export async function getExperiencesByCategory(
   })
 }
 
+export async function getDestinationRecommendations(
+  destinationId: string
+): Promise<ExperienceSearchResult[]> {
+  const supabase = await createClient()
+
+  const { data, error } = await supabase
+    .from('destination_recommendations')
+    .select(`
+      sort_order,
+      experiences (
+        id,
+        title,
+        short_description,
+        price_amount,
+        price_currency,
+        average_rating,
+        review_count,
+        category_id,
+        destination_id,
+        experience_images (url, is_cover)
+      )
+    `)
+    .eq('destination_id', destinationId)
+    .order('sort_order')
+
+  if (error || !data) return []
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data as any[]).map((row) => {
+    const exp = row.experiences
+    return {
+      id: exp.id,
+      title: exp.title,
+      short_description: exp.short_description ?? '',
+      price_amount: Number(exp.price_amount),
+      price_currency: exp.price_currency,
+      average_rating: Number(exp.average_rating),
+      review_count: exp.review_count,
+      category_id: exp.category_id,
+      destination_id: exp.destination_id,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      cover_image_url: exp.experience_images?.find((img: any) => img.is_cover)?.url
+        ?? exp.experience_images?.[0]?.url
+        ?? null,
+    } as unknown as ExperienceSearchResult
+  })
+}
+
 export async function getFeaturedExperiencesByCategory(
   categoryId: string,
   limit = 10
