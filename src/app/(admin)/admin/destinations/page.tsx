@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import {
   Card,
   CardContent,
@@ -8,76 +9,82 @@ import {
 } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { MapPin, Plus, Compass, Building2, Users } from 'lucide-react'
+import { MapPin, FolderOpen, ArrowRight } from 'lucide-react'
+import { getDestinations } from '@/queries/destinations'
+import { getAllCollections } from '@/queries/collections'
 
 export const metadata: Metadata = {
   title: 'Gestion de Destinos',
 }
 
-export default function AdminDestinationsPage() {
+export default async function AdminDestinationsPage() {
+  const [destinations, collections] = await Promise.all([
+    getDestinations(),
+    getAllCollections(),
+  ])
+
+  const collectionCountByDestination = collections.reduce<Record<string, number>>((acc, col) => {
+    return { ...acc, [col.destination_id]: (acc[col.destination_id] ?? 0) + 1 }
+  }, {})
+
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">
-            Gestion de Destinos
-          </h1>
-          <p className="mt-1 text-muted-foreground">
-            Administra los destinos disponibles en la plataforma
-          </p>
-        </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Agregar Destino
-        </Button>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Gestion de Destinos</h1>
+        <p className="mt-1 text-muted-foreground">
+          Administra los destinos y sus colecciones curadas
+        </p>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      {destinations.length === 0 ? (
         <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-primary" />
-                Cancun
-              </CardTitle>
-              <Badge>Activo</Badge>
-            </div>
-            <CardDescription>
-              Quintana Roo, Mexico
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2 text-muted-foreground">
-                  <Compass className="h-4 w-4" />
-                  Experiencias
-                </span>
-                <span className="font-medium">156</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2 text-muted-foreground">
-                  <Building2 className="h-4 w-4" />
-                  Proveedores
-                </span>
-                <span className="font-medium">47</span>
-              </div>
-              <div className="flex items-center justify-between text-sm">
-                <span className="flex items-center gap-2 text-muted-foreground">
-                  <Users className="h-4 w-4" />
-                  Visitantes este mes
-                </span>
-                <span className="font-medium">1,284</span>
-              </div>
-              <div className="pt-3 border-t">
-                <Button variant="outline" size="sm" className="w-full">
-                  Administrar destino
-                </Button>
-              </div>
-            </div>
+          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
+            <MapPin className="h-12 w-12 text-muted-foreground/50" />
+            <p className="mt-4 text-sm text-muted-foreground">No hay destinos configurados.</p>
           </CardContent>
         </Card>
-      </div>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {destinations.map((dest) => {
+            const collectionCount = collectionCountByDestination[dest.id] ?? 0
+            return (
+              <Card key={dest.id}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2">
+                      <MapPin className="h-5 w-5 text-primary" />
+                      {dest.name}
+                    </CardTitle>
+                    <Badge>{dest.is_active ? 'Activo' : 'Inactivo'}</Badge>
+                  </div>
+                  <CardDescription>
+                    {[dest.city, dest.state, dest.country].filter(Boolean).join(', ')}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-2 text-muted-foreground">
+                        <FolderOpen className="h-4 w-4" />
+                        Colecciones curadas
+                      </span>
+                      <span className="font-medium">{collectionCount}</span>
+                    </div>
+                    <div className="pt-3 border-t">
+                      <Button variant="outline" size="sm" className="w-full" asChild>
+                        <Link href={`/admin/destinations/${dest.id}`}>
+                          Gestionar colecciones
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

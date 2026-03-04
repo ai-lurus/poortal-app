@@ -601,6 +601,57 @@ export interface Database {
           used_at?: string | null
         }
       }
+      destination_collections: {
+        Row: {
+          id: string
+          destination_id: string
+          name: string
+          description: string | null
+          icon: string | null
+          sort_order: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          destination_id: string
+          name: string
+          description?: string | null
+          icon?: string | null
+          sort_order?: number
+          is_active?: boolean
+        }
+        Update: {
+          destination_id?: string
+          name?: string
+          description?: string | null
+          icon?: string | null
+          sort_order?: number
+          is_active?: boolean
+          updated_at?: string
+        }
+      }
+      collection_experiences: {
+        Row: {
+          id: string
+          collection_id: string
+          experience_id: string
+          sort_order: number
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          collection_id: string
+          experience_id: string
+          sort_order?: number
+        }
+        Update: {
+          collection_id?: string
+          experience_id?: string
+          sort_order?: number
+        }
+      }
     }
     Functions: {
       search_experiences: {

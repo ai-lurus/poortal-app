@@ -33,8 +33,23 @@ export async function loginAction(
     return { error: 'Credenciales invalidas. Verifica tu correo y contrasena.' }
   }
 
-  const redirectTo = formData.get('redirectTo') as string
-  redirect(redirectTo || '/')
+  const redirectTo = (formData.get('redirectTo') as string)?.trim()
+  if (redirectTo) redirect(redirectTo)
+
+  // Role-based redirect
+  const { data: { user: loggedUser } } = await supabase.auth.getUser()
+  if (loggedUser) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', loggedUser.id)
+      .single()
+    const role = (profile as { role: string } | null)?.role
+    if (role === 'admin') redirect('/admin/dashboard')
+    if (role === 'provider') redirect('/provider/dashboard')
+  }
+
+  redirect('/')
 }
 
 export async function registerAction(

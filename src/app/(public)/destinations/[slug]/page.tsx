@@ -29,8 +29,6 @@ export default async function DestinationPage({
 
   if (!destination) notFound()
 
-
-
   return (
     <div className="bg-background pb-20">
       <SetActiveDestination slug={destination.slug} />

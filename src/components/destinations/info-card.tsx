@@ -1,7 +1,6 @@
 'use client'
 
 import { Clock, Share2, Map as MapIcon, Phone, Globe } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 interface InfoCardProps {
     title: string

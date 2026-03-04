@@ -34,6 +34,26 @@ export type Payment = Database['public']['Tables']['payments']['Row']
 export type Cancellation = Database['public']['Tables']['cancellations']['Row']
 export type Notification = Database['public']['Tables']['notifications']['Row']
 export type PlatformCredit = Database['public']['Tables']['platform_credits']['Row']
+export type DestinationCollection = Database['public']['Tables']['destination_collections']['Row']
+export type CollectionExperience = Database['public']['Tables']['collection_experiences']['Row']
+
+// Composite type: collection with its experiences
+export type CollectionWithExperiences = DestinationCollection & {
+  collection_experiences: (CollectionExperience & {
+    experiences: {
+      id: string
+      title: string
+      slug: string
+      short_description: string | null
+      price_amount: number
+      price_currency: string
+      average_rating: number
+      review_count: number
+      duration_minutes: number | null
+      experience_images: { url: string; is_cover: boolean }[]
+    }
+  })[]
+}
 
 // Search result type
 export type ExperienceSearchResult = Database['public']['Functions']['search_experiences']['Returns'][number]

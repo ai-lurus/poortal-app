@@ -1,33 +1,16 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getDestinationBySlug, getDestinationCategories } from '@/queries/destinations'
+import { getDestinationInfoCategories } from '@/queries/destination_info'
+import { getDestinationBySlug } from '@/queries/destinations'
+import { getDestinationCollections } from '@/queries/collections'
 import { ROUTES } from '@/lib/constants'
 import { HomeHeader } from '@/components/home/home-header'
 import { DynamicIcon } from '@/lib/lucide-icon-map'
 import {
     Shield,
     Ambulance,
-    DollarSign,
-    Lock,
-    Landmark,
-    Building,
-    Bus,
-    Plane,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-const CATEGORY_COLORS: Record<string, string> = {
-    tours: 'text-indigo-500',
-    sea: 'text-cyan-500',
-    ride: 'text-rose-800',
-    food: 'text-teal-600',
-    stay: 'text-pink-500',
-    party: 'text-amber-400',
-    sports: 'text-orange-500',
-    culture: 'text-stone-800',
-    shopping: 'text-fuchsia-500',
-    wellness: 'text-emerald-500',
-}
 
 export async function generateMetadata({
     params,
@@ -51,17 +34,8 @@ export default async function DestinationInfoPage({
 
     if (!destination) notFound()
 
-    const categories = await getDestinationCategories(destination.id)
-
-    // Define the grid items for "secure information"
-    const secureInfoItems = [
-        { icon: DollarSign, label: 'money exchange', slug: 'money-exchange', color: 'text-emerald-500' },
-        { icon: Lock, label: 'local tips', slug: 'local-tips', color: 'text-teal-700' },
-        { icon: Landmark, label: 'consulates', slug: 'consulates', color: 'text-slate-500' },
-        { icon: Building, label: 'real estate', slug: 'real-estate', color: 'text-fuchsia-500' },
-        { icon: Bus, label: 'local transport', slug: 'local-transport', color: 'text-rose-800' },
-        { icon: Plane, label: 'airport', slug: 'airport', color: 'text-blue-700' },
-    ]
+    const collections = await getDestinationCollections(destination.id)
+    const secureInfoCategories = await getDestinationInfoCategories(destination.id)
 
     return (
         <div className="bg-background pb-20">
@@ -87,42 +61,41 @@ export default async function DestinationInfoPage({
                 </div>
 
                 {/* Secure Information */}
-                <div className="mb-5">
-                    <h2 className="text-center text-sm font-medium text-foreground mb-2.5">secure information</h2>
-                    <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                        {secureInfoItems.map((item, idx) => {
-                            const Icon = item.icon
-                            return (
+                {secureInfoCategories.length > 0 && (
+                    <div className="mb-5">
+                        <h2 className="text-center text-sm font-medium text-foreground mb-2.5">secure information</h2>
+                        <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                            {secureInfoCategories.map((category) => (
                                 <Link
-                                    href={ROUTES.destinationInfoCategory(destination.slug, item.slug)}
-                                    key={idx}
+                                    href={ROUTES.destinationInfoCategory(destination.slug, category.slug)}
+                                    key={category.id}
                                     className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl border bg-white shadow-sm aspect-[5/4] active:scale-95 transition-transform"
                                 >
-                                    <Icon className={cn("h-8 w-8", item.color)} strokeWidth={1.25} />
-                                    <span className="text-[9px] font-medium text-muted-foreground text-center leading-tight">{item.label}</span>
+                                    <DynamicIcon name={category.icon} className={cn("h-8 w-8", category.color)} strokeWidth={1.25} />
+                                    <span className="text-[9px] font-medium text-muted-foreground text-center leading-tight">{category.title}</span>
                                 </Link>
-                            )
-                        })}
+                            ))}
+                        </div>
                     </div>
-                </div>
+                )}
 
-                {/* Recommendations */}
-                {categories.length > 0 && (
+                {/* Recommendations — configured from admin */}
+                {collections.length > 0 && (
                     <div className="mb-2">
                         <h2 className="text-center text-sm font-medium text-foreground mb-2.5">recommendations</h2>
                         <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                            {categories.map((cat) => (
+                            {collections.map((col) => (
                                 <Link
-                                    href={ROUTES.destinationInfoCategory(destination.slug, cat.slug)}
-                                    key={cat.id}
+                                    href={`/destinations/${destination.slug}/info/collection/${col.id}`}
+                                    key={col.id}
                                     className="flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl border bg-white shadow-sm aspect-[5/4] active:scale-95 transition-transform"
                                 >
                                     <DynamicIcon
-                                        name={cat.icon}
-                                        className={cn('h-8 w-8', CATEGORY_COLORS[cat.slug] || 'text-slate-500')}
+                                        name={col.icon}
+                                        className={cn('h-8 w-8', 'text-teal-600')}
                                         strokeWidth={1.25}
                                     />
-                                    <span className="text-[9px] font-medium text-muted-foreground text-center leading-tight">{cat.name}</span>
+                                    <span className="text-[9px] font-medium text-muted-foreground text-center leading-tight">{col.name}</span>
                                 </Link>
                             ))}
                         </div>
