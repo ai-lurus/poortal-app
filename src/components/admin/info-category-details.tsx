@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useTransition, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import { Plus, GripVertical, Settings2, Trash2, Pencil, Calendar, Clock, MapIcon, Share2, Phone, Globe, Image as ImageIcon } from 'lucide-react'
 import {
     DndContext,
@@ -169,69 +168,70 @@ function SortableItemCard({
 }
 
 export function InfoCategoryDetails({ category, destinationId }: Props) {
-    const router = useRouter()
     const [isPending, startTransition] = useTransition()
 
     // Local state for items
     const [items, setItems] = useState<DestinationInfoItem[]>([])
     const [isLoading, setIsLoading] = useState(true)
 
+    // Cache items per category to avoid re-fetching when switching back
+    const itemsCacheRef = useRef<Record<string, DestinationInfoItem[]>>({})
+
     // Modals state
     const [isCreateOpen, setIsCreateOpen] = useState(false)
     const [editingItem, setEditingItem] = useState<DestinationInfoItem | null>(null)
     const [itemToDelete, setItemToDelete] = useState<DestinationInfoItem | null>(null)
 
-    const [submitState, setSubmitState] = useState<{ success?: boolean; error?: string } | null>(null)
-    const wasPending = useRef(false)
-
     // Fetch items whenever the selected category changes
     useEffect(() => {
         let mounted = true
+
+        // Serve from cache immediately if available
+        if (itemsCacheRef.current[category.id]) {
+            setItems(itemsCacheRef.current[category.id])
+            setIsLoading(false)
+            return
+        }
+
         setIsLoading(true)
 
         async function fetchItems() {
             const supabase = createClient()
-            const { data, error } = await supabase
+            const { data, error } = await (supabase as any)
                 .from('destination_info_items')
                 .select('*')
                 .eq('category_id', category.id)
                 .order('sort_order', { ascending: true })
 
-            if (mounted && !error && data) {
-                setItems(data as DestinationInfoItem[])
+            if (!mounted) return
+            if (error) {
+                console.error('Error fetching info items:', error)
                 setIsLoading(false)
+                return
             }
+            itemsCacheRef.current[category.id] = (data ?? []) as DestinationInfoItem[]
+            setItems((data ?? []) as DestinationInfoItem[])
+            setIsLoading(false)
         }
 
         fetchItems()
         return () => { mounted = false }
     }, [category.id])
 
-    // React to Server Action completion
-    useEffect(() => {
-        if (wasPending.current && !isPending && submitState?.success) {
-            setIsCreateOpen(false)
-            setEditingItem(null)
-            setItemToDelete(null)
-            setSubmitState(null)
-
-            // Re-fetch locally (server action revalidates path, but we are managing local state)
-            const fetchNewState = async () => {
-                setIsLoading(true)
-                const supabase = createClient()
-                const { data } = await supabase
-                    .from('destination_info_items')
-                    .select('*')
-                    .eq('category_id', category.id)
-                    .order('sort_order', { ascending: true })
-                if (data) setItems(data as DestinationInfoItem[])
-                setIsLoading(false)
-            }
-            fetchNewState()
-            router.refresh()
+    async function refreshItems(categoryId: string) {
+        const supabase = createClient()
+        const { data, error } = await (supabase as any)
+            .from('destination_info_items')
+            .select('*')
+            .eq('category_id', categoryId)
+            .order('sort_order', { ascending: true })
+        if (error) {
+            console.error('Error refreshing info items:', error)
+            return
         }
-        wasPending.current = isPending
-    }, [isPending, submitState, category.id, router])
+        itemsCacheRef.current[categoryId] = (data ?? []) as DestinationInfoItem[]
+        setItems((data ?? []) as DestinationInfoItem[])
+    }
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -244,25 +244,23 @@ export function InfoCategoryDetails({ category, destinationId }: Props) {
         const { active, over } = event
 
         if (over && active.id !== over.id) {
-            setItems((currentItems) => {
-                const oldIndex = currentItems.findIndex((i) => i.id === active.id)
-                const newIndex = currentItems.findIndex((i) => i.id === over.id)
+            const oldIndex = items.findIndex((i) => i.id === active.id)
+            const newIndex = items.findIndex((i) => i.id === over.id)
+            const newArray = arrayMove(items, oldIndex, newIndex)
 
-                const newArray = arrayMove(currentItems, oldIndex, newIndex)
+            setItems(newArray) // optimistic update
 
-                startTransition(async () => {
-                    const result = await updateInfoItemsOrder(
-                        newArray.map(c => c.id),
-                        destinationId
-                    )
-                    if (!result.success) {
-                        setItems(currentItems) // revert
-                        alert(result.error)
-                    } else {
-                        router.refresh()
-                    }
-                })
-                return newArray
+            startTransition(async () => {
+                const result = await updateInfoItemsOrder(
+                    newArray.map(c => c.id),
+                    destinationId
+                )
+                if (!result.success) {
+                    setItems(items) // revert
+                    alert(result.error)
+                } else {
+                    itemsCacheRef.current[category.id] = newArray
+                }
             })
         }
     }
@@ -270,7 +268,12 @@ export function InfoCategoryDetails({ category, destinationId }: Props) {
     const handleCreate = async (data: any) => {
         startTransition(async () => {
             const result = await createInfoItem({ ...data, category_id: category.id }, destinationId)
-            setSubmitState(result)
+            if (result.success) {
+                setIsCreateOpen(false)
+                await refreshItems(category.id)
+            } else {
+                alert(result.error)
+            }
         })
     }
 
@@ -278,7 +281,12 @@ export function InfoCategoryDetails({ category, destinationId }: Props) {
         if (!editingItem) return
         startTransition(async () => {
             const result = await updateInfoItem(editingItem.id, data, destinationId)
-            setSubmitState(result)
+            if (result.success) {
+                setEditingItem(null)
+                await refreshItems(category.id)
+            } else {
+                alert(result.error)
+            }
         })
     }
 
@@ -286,7 +294,12 @@ export function InfoCategoryDetails({ category, destinationId }: Props) {
         if (!itemToDelete) return
         startTransition(async () => {
             const result = await deleteInfoItem(itemToDelete.id, destinationId)
-            setSubmitState(result)
+            if (result.success) {
+                setItemToDelete(null)
+                await refreshItems(category.id)
+            } else {
+                alert(result.error)
+            }
         })
     }
 

@@ -205,25 +205,21 @@ export function InfoCategoryManager({
         const { active, over } = event
 
         if (over && active.id !== over.id) {
-            setCategories((items) => {
-                const oldIndex = items.findIndex((i) => i.id === active.id)
-                const newIndex = items.findIndex((i) => i.id === over.id)
+            const oldIndex = categories.findIndex((i) => i.id === active.id)
+            const newIndex = categories.findIndex((i) => i.id === over.id)
+            const newArray = arrayMove(categories, oldIndex, newIndex)
 
-                const newArray = arrayMove(items, oldIndex, newIndex)
+            setCategories(newArray) // optimistic update
 
-                startTransition(async () => {
-                    const result = await updateInfoCategoriesOrder(
-                        newArray.map(c => c.id),
-                        destinationId
-                    )
-                    if (!result.success) {
-                        setCategories(items) // reset to old items if failed
-                        alert(result.error)
-                    } else {
-                        router.refresh()
-                    }
-                })
-                return newArray
+            startTransition(async () => {
+                const result = await updateInfoCategoriesOrder(
+                    newArray.map(c => c.id),
+                    destinationId
+                )
+                if (!result.success) {
+                    setCategories(categories) // revert
+                    alert(result.error)
+                }
             })
         }
     }

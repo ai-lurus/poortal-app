@@ -89,15 +89,16 @@ export async function updateInfoCategoriesOrder(
 ) {
     const supabase = await createClient()
 
-    const updates = orderedIds.map((id, index) => ({
-        id,
-        sort_order: index,
-    }))
+    const results = await Promise.all(
+        orderedIds.map((id, index) =>
+            (supabase as any)
+                .from('destination_info_categories')
+                .update({ sort_order: index })
+                .eq('id', id)
+        )
+    )
 
-    const { error } = await supabase
-        .from('destination_info_categories')
-        .upsert(updates)
-
+    const error = results.find((r: any) => r.error)?.error
     if (error) {
         console.error('Error updating info categories order:', error)
         return { success: false, error: 'Error al reordenar categorías' }
