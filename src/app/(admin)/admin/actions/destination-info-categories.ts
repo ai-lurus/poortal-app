@@ -14,14 +14,14 @@ export async function createInfoCategory(data: {
     const supabase = await createClient()
 
     // Find max sort order
-    const { data: categories } = await supabase
+    const { data: categories } = await (supabase as any)
         .from('destination_info_categories')
         .select('sort_order')
         .eq('destination_id', data.destination_id)
         .order('sort_order', { ascending: false })
         .limit(1)
 
-    const maxOrder = categories?.[0]?.sort_order ?? 0
+    const maxOrder = (categories as any)?.[0]?.sort_order ?? 0
 
     const { error } = await supabase
         .from('destination_info_categories')
