@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import type { Metadata } from 'next'
 import { getProvidersByStatus } from '@/queries/providers'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
