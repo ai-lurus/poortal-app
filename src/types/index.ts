@@ -1,23 +1,22 @@
-export type { Database } from './database'
-export type {
-  UserRole,
-  ProviderStatus,
-  DocumentType,
-  DocumentStatus,
-  CancellationPolicy,
-  ExperienceStatus,
-  PricingType,
-  BookingStatus,
-  BookingItemStatus,
-  TicketStatus,
-  PaymentStatus,
-  PaymentType,
-  NotificationType,
-  CreditReason,
-  Json,
-} from './database'
+export type { Database, Json } from './database'
 
 import type { Database } from './database'
+
+// Enum type aliases from Supabase-generated types
+export type UserRole = Database['public']['Enums']['user_role']
+export type ProviderStatus = Database['public']['Enums']['provider_status']
+export type DocumentType = Database['public']['Enums']['document_type']
+export type DocumentStatus = Database['public']['Enums']['document_status']
+export type CancellationPolicy = Database['public']['Enums']['cancellation_policy']
+export type ExperienceStatus = Database['public']['Enums']['experience_status']
+export type PricingType = Database['public']['Enums']['pricing_type']
+export type BookingStatus = Database['public']['Enums']['booking_status']
+export type BookingItemStatus = Database['public']['Enums']['booking_item_status']
+export type TicketStatus = Database['public']['Enums']['ticket_status']
+export type PaymentStatus = Database['public']['Enums']['payment_status']
+export type PaymentType = Database['public']['Enums']['payment_type']
+export type NotificationType = Database['public']['Enums']['notification_type']
+export type CreditReason = Database['public']['Enums']['credit_reason']
 
 // Convenience type aliases for table rows
 export type Profile = Database['public']['Tables']['profiles']['Row']

@@ -31,9 +31,10 @@ interface IconPickerProps {
     value?: string
     onChange: (value: string) => void
     name?: string
+    disabled?: boolean
 }
 
-export function IconPicker({ value, onChange, name }: IconPickerProps) {
+export function IconPicker({ value, onChange, name, disabled }: IconPickerProps) {
     const [open, setOpen] = React.useState(false)
     const [search, setSearch] = React.useState('')
 
@@ -59,6 +60,7 @@ export function IconPicker({ value, onChange, name }: IconPickerProps) {
                     role="combobox"
                     aria-expanded={open}
                     className="w-full justify-between font-normal"
+                    disabled={disabled}
                 >
                     <div className="flex items-center gap-2 truncate">
                         {SelectedIcon ? <SelectedIcon className="h-4 w-4 shrink-0" /> : <Search className="h-4 w-4 shrink-0 opacity-50" />}
