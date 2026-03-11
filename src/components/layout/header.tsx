@@ -112,18 +112,22 @@ export function Header() {
                     Mi Perfil
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href={ROUTES.wallet}>
-                    <Ticket className="mr-2 h-4 w-4" />
-                    Mi Wallet
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href={ROUTES.bookings}>
-                    <CalendarCheck className="mr-2 h-4 w-4" />
-                    Mis Reservas
-                  </Link>
-                </DropdownMenuItem>
+                {profile.role === 'tourist' && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href={ROUTES.wallet}>
+                        <Ticket className="mr-2 h-4 w-4" />
+                        Mi Wallet
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href={ROUTES.bookings}>
+                        <CalendarCheck className="mr-2 h-4 w-4" />
+                        Mis Reservas
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                )}
 
                 {/* Provider links */}
                 {(profile.role === 'provider' || profile.role === 'admin') && (
@@ -194,12 +198,16 @@ export function Header() {
                 {user && profile && (
                   <>
                     <hr />
-                    <Link href={ROUTES.wallet} className="text-lg font-medium">
-                      Mi Wallet
-                    </Link>
-                    <Link href={ROUTES.bookings} className="text-lg font-medium">
-                      Mis Reservas
-                    </Link>
+                    {profile.role === 'tourist' && (
+                      <>
+                        <Link href={ROUTES.wallet} className="text-lg font-medium">
+                          Mi Wallet
+                        </Link>
+                        <Link href={ROUTES.bookings} className="text-lg font-medium">
+                          Mis Reservas
+                        </Link>
+                      </>
+                    )}
                     <Link href={ROUTES.profile} className="text-lg font-medium">
                       Mi Perfil
                     </Link>

@@ -16,28 +16,55 @@ type ExperienceRow = {
   status: string
   price_amount: number
   price_currency: string
+  pricing_type: string
+  duration_minutes: number | null
+  max_capacity: number
+  min_capacity: number
+  cancellation_policy: string
+  short_description: string | null
+  description: string
+  meeting_point: string | null
+  rejection_reason: string | null
   created_at: string
-  provider_profiles: { business_name: string } | null
+  provider_profiles: {
+    business_name: string
+    representative_name: string
+    phone: string
+    location: string
+    status: string
+  } | null
   categories: { name: string } | null
+  destinations: { name: string } | null
+  experience_images: { url: string; alt_text: string | null; is_cover: boolean; sort_order: number }[]
 }
 
 export default async function AdminExperiencesPage() {
   const supabase = await createClient()
 
+  const selectFields = `
+    id, title, slug, status, price_amount, price_currency, pricing_type,
+    duration_minutes, max_capacity, min_capacity, cancellation_policy,
+    short_description, description, meeting_point, rejection_reason, created_at,
+    provider_profiles (business_name, representative_name, phone, location, status),
+    categories (name),
+    destinations (name),
+    experience_images (url, alt_text, is_cover, sort_order)
+  `
+
   const [{ data: pending }, { data: active }, { data: rejected }] = await Promise.all([
     supabase
       .from('experiences')
-      .select('id, title, slug, status, price_amount, price_currency, created_at, provider_profiles (business_name), categories (name)')
+      .select(selectFields)
       .eq('status', 'pending_review')
       .order('created_at', { ascending: false }),
     supabase
       .from('experiences')
-      .select('id, title, slug, status, price_amount, price_currency, created_at, provider_profiles (business_name), categories (name)')
+      .select(selectFields)
       .eq('status', 'active')
       .order('created_at', { ascending: false }),
     supabase
       .from('experiences')
-      .select('id, title, slug, status, price_amount, price_currency, created_at, provider_profiles (business_name), categories (name)')
+      .select(selectFields)
       .in('status', ['rejected', 'draft', 'paused'])
       .order('created_at', { ascending: false }),
   ])

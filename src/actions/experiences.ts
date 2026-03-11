@@ -268,3 +268,71 @@ export async function submitExperienceForReviewAction(experienceId: string): Pro
 
   return { success: 'Experiencia enviada para revision.' }
 }
+
+export async function addRecurringAvailabilityAction(
+  _prevState: ExperienceActionState,
+  formData: FormData
+): Promise<ExperienceActionState> {
+  const experienceId = formData.get('experience_id') as string
+  const dateFrom = formData.get('date_from') as string
+  const dateTo = formData.get('date_to') as string
+  const weekdays = formData.getAll('weekdays').map(Number)
+  const startTime = formData.get('start_time') as string
+  const endTime = (formData.get('end_time') as string) || null
+  const totalSpotsRaw = formData.get('total_spots') as string
+  const priceOverrideRaw = formData.get('price_override') as string
+
+  if (!experienceId || !dateFrom || !dateTo || !weekdays.length || !startTime || !totalSpotsRaw) {
+    return { error: 'Completa todos los campos requeridos.' }
+  }
+
+  const totalSpots = parseInt(totalSpotsRaw, 10)
+  if (isNaN(totalSpots) || totalSpots < 1) {
+    return { error: 'Los lugares disponibles deben ser al menos 1.' }
+  }
+
+  const priceOverride = priceOverrideRaw ? parseFloat(priceOverrideRaw) : null
+
+  const dates: string[] = []
+  const current = new Date(dateFrom + 'T12:00:00')
+  const end = new Date(dateTo + 'T12:00:00')
+
+  if (current > end) {
+    return { error: 'La fecha de inicio debe ser anterior a la fecha de fin.' }
+  }
+
+  while (current <= end) {
+    if (weekdays.includes(current.getDay())) {
+      dates.push(current.toISOString().split('T')[0])
+    }
+    current.setDate(current.getDate() + 1)
+  }
+
+  if (dates.length === 0) {
+    return { error: 'No hay fechas disponibles con esa combinacion de dias en el rango seleccionado.' }
+  }
+  if (dates.length > 365) {
+    return { error: 'El rango genera demasiadas fechas. Reduce el periodo o los dias.' }
+  }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Debes iniciar sesion.' }
+
+  const rows = dates.map((date) => ({
+    experience_id: experienceId,
+    date,
+    start_time: startTime,
+    end_time: endTime || null,
+    total_spots: totalSpots,
+    price_override: priceOverride,
+  }))
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any).from('experience_availability').insert(rows)
+  if (error) {
+    return { error: 'Error al agregar disponibilidad recurrente.' }
+  }
+
+  return { success: `${dates.length} fechas agregadas correctamente.`, experienceId }
+}

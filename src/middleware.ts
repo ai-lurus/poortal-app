@@ -36,8 +36,9 @@ export async function middleware(request: NextRequest) {
         const profile = data as { role: UserRole } | null
 
         if (!profile || profile.role !== role) {
-          // Admin can access everything
-          if (profile?.role !== 'admin') {
+          // Admin can access admin routes only, not provider routes
+          const isProviderRoute = routes.some((route) => route.startsWith('/provider'))
+          if (profile?.role !== 'admin' || isProviderRoute) {
             return NextResponse.redirect(new URL('/', request.url))
           }
         }

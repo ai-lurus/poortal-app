@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { ProviderProfile, Category, Destination, Experience } from '@/types'
 import { ExperienceForm } from '@/components/provider/experience-form'
 import { AvailabilityManager } from '@/components/provider/availability-manager'
+import { ExperienceStatusCard } from '@/components/provider/experience-status-card'
 
 export const metadata = {
   title: 'Editar Experiencia',
@@ -57,6 +58,11 @@ export default async function EditExperiencePage({
       </div>
 
       <div className="space-y-8">
+        <ExperienceStatusCard
+          experienceId={id}
+          status={(experience as Experience).status}
+        />
+
         <ExperienceForm
           categories={(categories as Category[] | null) ?? []}
           destinations={(destinations as Destination[] | null) ?? []}

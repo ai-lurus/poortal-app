@@ -10,7 +10,8 @@ import {
   CalendarCheck,
   BarChart3,
   CreditCard,
-  Settings,
+  Ban,
+  HeadphonesIcon,
 } from 'lucide-react'
 
 const providerNavItems = [
@@ -19,6 +20,8 @@ const providerNavItems = [
   { href: ROUTES.providerBookings, label: 'Reservas', icon: CalendarCheck },
   { href: ROUTES.providerAnalytics, label: 'Analiticas', icon: BarChart3 },
   { href: ROUTES.providerPayments, label: 'Pagos', icon: CreditCard },
+  { href: '/provider/cancellations', label: 'Cancelaciones', icon: Ban },
+  { href: '/provider/support', label: 'Soporte', icon: HeadphonesIcon },
 ]
 
 export function ProviderSidebar() {
