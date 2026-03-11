@@ -12,18 +12,19 @@ export async function createInfoCategory(data: {
     subtitle: string | null
 }) {
     const supabase = await createClient()
+    const db = supabase as any
 
     // Find max sort order
-    const { data: categories } = await (supabase as any)
+    const { data: categories } = await db
         .from('destination_info_categories')
         .select('sort_order')
         .eq('destination_id', data.destination_id)
         .order('sort_order', { ascending: false })
         .limit(1)
 
-    const maxOrder = (categories as any)?.[0]?.sort_order ?? 0
+    const maxOrder = categories?.[0]?.sort_order ?? 0
 
-    const { error } = await supabase
+    const { error } = await db
         .from('destination_info_categories')
         .insert({
             ...data,
@@ -51,8 +52,9 @@ export async function updateInfoCategory(
     destinationId: string
 ) {
     const supabase = await createClient()
+    const db = supabase as any
 
-    const { error } = await supabase
+    const { error } = await db
         .from('destination_info_categories')
         .update(data)
         .eq('id', id)
@@ -68,8 +70,9 @@ export async function updateInfoCategory(
 
 export async function deleteInfoCategory(id: string, destinationId: string) {
     const supabase = await createClient()
+    const db = supabase as any
 
-    const { error } = await supabase
+    const { error } = await db
         .from('destination_info_categories')
         .delete()
         .eq('id', id)
