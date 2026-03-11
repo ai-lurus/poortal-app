@@ -96,14 +96,14 @@ export async function updateInfoItemsOrder(
 
     const results = await Promise.all(
         orderedIds.map((id, index) =>
-            (supabase as any)
+            supabase
                 .from('destination_info_items')
                 .update({ sort_order: index })
                 .eq('id', id)
         )
     )
 
-    const error = results.find((r: any) => r.error)?.error
+    const error = results.find((r) => r.error)?.error
     if (error) {
         console.error('Error updating info items order:', error)
         return { success: false, error: 'Error al reordenar elementos' }

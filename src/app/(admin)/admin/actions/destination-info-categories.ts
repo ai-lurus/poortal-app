@@ -12,10 +12,9 @@ export async function createInfoCategory(data: {
     subtitle: string | null
 }) {
     const supabase = await createClient()
-    const db = supabase as any
 
     // Find max sort order
-    const { data: categories } = await db
+    const { data: categories } = await supabase
         .from('destination_info_categories')
         .select('sort_order')
         .eq('destination_id', data.destination_id)
@@ -24,7 +23,7 @@ export async function createInfoCategory(data: {
 
     const maxOrder = categories?.[0]?.sort_order ?? 0
 
-    const { error } = await db
+    const { error } = await supabase
         .from('destination_info_categories')
         .insert({
             ...data,
@@ -52,9 +51,8 @@ export async function updateInfoCategory(
     destinationId: string
 ) {
     const supabase = await createClient()
-    const db = supabase as any
 
-    const { error } = await db
+    const { error } = await supabase
         .from('destination_info_categories')
         .update(data)
         .eq('id', id)
@@ -70,9 +68,8 @@ export async function updateInfoCategory(
 
 export async function deleteInfoCategory(id: string, destinationId: string) {
     const supabase = await createClient()
-    const db = supabase as any
 
-    const { error } = await db
+    const { error } = await supabase
         .from('destination_info_categories')
         .delete()
         .eq('id', id)
@@ -94,14 +91,14 @@ export async function updateInfoCategoriesOrder(
 
     const results = await Promise.all(
         orderedIds.map((id, index) =>
-            (supabase as any)
+            supabase
                 .from('destination_info_categories')
                 .update({ sort_order: index })
                 .eq('id', id)
         )
     )
 
-    const error = results.find((r: any) => r.error)?.error
+    const error = results.find((r) => r.error)?.error
     if (error) {
         console.error('Error updating info categories order:', error)
         return { success: false, error: 'Error al reordenar categorías' }
