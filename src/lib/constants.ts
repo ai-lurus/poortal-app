@@ -56,7 +56,6 @@ export const ROUTES = {
 // Route groups that require authentication
 export const PROTECTED_ROUTES = [
   '/checkout',
-  '/wallet',
   '/bookings',
   '/profile',
   '/provider',

@@ -1,7 +1,7 @@
 'use server'
 
 import { auth } from '@/lib/auth'
-import { headers } from 'next/headers'
+import { headers, cookies } from 'next/headers'
 import prisma from '@/lib/prisma'
 
 interface CartItem {
@@ -16,16 +16,49 @@ interface CartItem {
   pricingType: 'per_person' | 'per_group' | 'flat_rate'
 }
 
-export async function createBookingFromCart(items: CartItem[]) {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (!session?.user) return { error: 'not_authenticated' }
-  if (items.length === 0) return { error: 'empty_cart' }
+interface CreateBookingInput {
+  items: CartItem[]
+  guestEmail?: string
+  guestName?: string
+}
 
-  const profile = await prisma.profiles.findFirst({
-    where: { user_id: session.user.id },
-    select: { id: true },
-  })
-  if (!profile) return { error: 'not_authenticated' }
+export async function createBookingFromCart({ items, guestEmail, guestName }: CreateBookingInput) {
+  if (items.length === 0) return { error: 'empty_cart' as const }
+
+  const session = await auth.api.getSession({ headers: await headers() })
+
+  let profileId: string
+
+  if (session?.user) {
+    const profile = await prisma.profiles.findFirst({
+      where: { user_id: session.user.id },
+      select: { id: true },
+    })
+    if (!profile) return { error: 'not_authenticated' as const }
+    profileId = profile.id
+  } else {
+    if (!guestEmail) return { error: 'guest_email_required' as const }
+
+    const email = guestEmail.trim().toLowerCase()
+    const existing = await prisma.profiles.findUnique({
+      where: { email },
+      select: { id: true },
+    })
+
+    if (existing) {
+      profileId = existing.id
+    } else {
+      const created = await prisma.profiles.create({
+        data: {
+          email,
+          full_name: guestName?.trim() || null,
+          role: 'tourist',
+        },
+        select: { id: true },
+      })
+      profileId = created.id
+    }
+  }
 
   const subtotal = items.reduce((acc, item) => {
     const lineTotal = item.pricingType === 'per_person' ? item.unitPrice * item.quantity : item.unitPrice
@@ -35,11 +68,14 @@ export async function createBookingFromCart(items: CartItem[]) {
   const total = subtotal + iva
 
   const bookingNumber = `POORTAL-${crypto.randomUUID().substring(0, 8).toUpperCase()}`
+  const guestToken = crypto.randomUUID()
 
   const booking = await prisma.bookings.create({
     data: {
       booking_number: bookingNumber,
-      user_id: profile.id,
+      user_id: profileId,
+      guest_email: session?.user ? null : guestEmail?.trim().toLowerCase(),
+      guest_token: guestToken,
       status: 'confirmed',
       total_amount: total,
       platform_fee: 0,
@@ -67,15 +103,13 @@ export async function createBookingFromCart(items: CartItem[]) {
       select: { id: true },
     })
 
-    const qrCode = crypto.randomUUID()
-
     await prisma.tickets.create({
       data: {
         booking_item_id: bookingItem.id,
-        user_id: profile.id,
+        user_id: profileId,
         experience_id: item.experienceId,
         provider_id: item.providerId,
-        qr_code: qrCode,
+        qr_code: crypto.randomUUID(),
         status: 'active',
         service_date: new Date(item.serviceDate),
         service_time: item.serviceTime,
@@ -84,5 +118,17 @@ export async function createBookingFromCart(items: CartItem[]) {
     })
   }
 
-  return { bookingId: booking.id }
+  if (!session?.user) {
+    const cookieStore = await cookies()
+    const existing = cookieStore.get('guest_tokens')?.value
+    const tokens: string[] = existing ? JSON.parse(existing) : []
+    tokens.push(guestToken)
+    cookieStore.set('guest_tokens', JSON.stringify(tokens), {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 365,
+      sameSite: 'lax',
+    })
+  }
+
+  return { bookingId: booking.id, guestToken }
 }

@@ -2,11 +2,12 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, Percent, X, Loader2 } from 'lucide-react'
+import { ChevronLeft, Percent, X, Loader2, Mail } from 'lucide-react'
 import Image from 'next/image'
 import { useCartStore } from '@/stores/cart-store'
 import { createBookingFromCart } from '@/actions/bookings'
 import { HomeHeader } from '@/components/home/home-header'
+import { useSession } from '@/lib/auth-client'
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -24,17 +25,24 @@ function formatTime(time: string) {
 
 export default function CartPage() {
   const router = useRouter()
+  const { data: session, isPending: sessionLoading } = useSession()
   const { items, removeItem, clearCart } = useCartStore()
   const [agreed, setAgreed] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
-  async function handleConfirm() {
-    if (!agreed || items.length === 0) return
+  // Guest email form state
+  const [showEmailForm, setShowEmailForm] = useState(false)
+  const [guestEmail, setGuestEmail] = useState('')
+  const [guestName, setGuestName] = useState('')
+  const [emailError, setEmailError] = useState<string | null>(null)
+
+  async function submitBooking(email?: string, name?: string) {
     setLoading(true)
     setErrorMsg(null)
-    const result = await createBookingFromCart(
-      items.map((item) => ({
+
+    const result = await createBookingFromCart({
+      items: items.map((item) => ({
         experienceId: item.experienceId,
         availabilityId: item.availabilityId,
         providerId: item.providerId,
@@ -44,19 +52,43 @@ export default function CartPage() {
         serviceDate: item.serviceDate,
         serviceTime: item.serviceTime,
         pricingType: item.pricingType,
-      }))
-    )
+      })),
+      guestEmail: email,
+      guestName: name,
+    })
+
     setLoading(false)
-    if (result.error) {
-      if (result.error === 'not_authenticated') {
-        setErrorMsg('Debes iniciar sesión para confirmar tu reserva.')
-      } else {
-        setErrorMsg('Hubo un error al procesar tu reserva. Intenta de nuevo.')
-      }
+
+    if ('error' in result) {
+      setErrorMsg('Hubo un error al procesar tu reserva. Intenta de nuevo.')
       return
     }
+
     clearCart()
-    router.push('/success')
+    router.push('/wallet?confirmed=1')
+  }
+
+  async function handleConfirm() {
+    if (!agreed || items.length === 0) return
+
+    if (session?.user) {
+      await submitBooking()
+    } else {
+      setShowEmailForm(true)
+    }
+  }
+
+  async function handleGuestSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setEmailError(null)
+
+    const email = guestEmail.trim()
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError('Por favor ingresa un email válido.')
+      return
+    }
+
+    await submitBooking(email, guestName.trim() || undefined)
   }
 
   const currency = items[0]?.currency || 'MXN'
@@ -267,7 +299,7 @@ export default function CartPage() {
               <div className="flex justify-center mb-8">
                 <button
                   onClick={handleConfirm}
-                  disabled={!agreed || loading}
+                  disabled={!agreed || loading || sessionLoading}
                   className="bg-teal-700 disabled:bg-slate-300 text-white rounded-[2rem] px-14 py-3.5 text-base font-semibold active:scale-95 transition-all shadow-md flex items-center gap-2"
                 >
                   {loading && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -278,6 +310,66 @@ export default function CartPage() {
           </div>
         )}
       </main>
+
+      {/* Guest email modal */}
+      {showEmailForm && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-teal-50 rounded-full flex items-center justify-center shrink-0">
+                <Mail className="h-5 w-5 text-teal-700" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-slate-900">¿A dónde enviamos tu ticket?</h2>
+                <p className="text-xs text-slate-500 mt-0.5">No necesitas cuenta. Solo tu email.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleGuestSubmit} className="flex flex-col gap-3">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-slate-700">Nombre (opcional)</label>
+                <input
+                  type="text"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  placeholder="Tu nombre"
+                  className="border border-slate-200 rounded-lg px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-teal-500 transition-colors"
+                />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-semibold text-slate-700">Email *</label>
+                <input
+                  type="email"
+                  value={guestEmail}
+                  onChange={(e) => setGuestEmail(e.target.value)}
+                  placeholder="tu@email.com"
+                  autoFocus
+                  className="border border-slate-200 rounded-lg px-4 py-2.5 text-sm text-slate-800 outline-none focus:border-teal-500 transition-colors"
+                />
+                {emailError && <p className="text-xs text-red-500">{emailError}</p>}
+              </div>
+
+              <div className="flex gap-3 mt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowEmailForm(false)}
+                  className="flex-1 border border-slate-200 rounded-xl py-3 text-sm font-semibold text-slate-700 active:scale-95 transition-transform"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 bg-teal-700 disabled:bg-slate-300 text-white rounded-xl py-3 text-sm font-semibold active:scale-95 transition-all flex items-center justify-center gap-2"
+                >
+                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {loading ? 'Procesando...' : 'Confirmar reserva'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

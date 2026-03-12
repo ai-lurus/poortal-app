@@ -94,6 +94,8 @@ model bookings {
   id                         String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   booking_number             String             @unique
   user_id                    String             @db.Uuid
+  guest_email                String?
+  guest_token                String?            @unique
   status                     booking_status     @default(pending_payment)
   total_amount               Decimal            @db.Decimal(10, 2)
   platform_fee               Decimal            @default(0) @db.Decimal(10, 2)
