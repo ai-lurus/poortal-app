@@ -1,35 +1,26 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { auth } from '@/lib/auth'
+import { headers } from 'next/headers'
+import prisma from '@/lib/prisma'
 
 export type AdminActionState = {
   error?: string
   success?: string
 }
 
-// Helper to perform typed updates bypassing strict generic inference
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function updateTable(supabase: SupabaseClient<any>, table: string, data: Record<string, unknown>) {
-  return supabase.from(table).update(data)
-}
+async function verifyAdmin(): Promise<{ userId: string } | null> {
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session?.user) return null
 
-async function verifyAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
+  const profile = await prisma.profiles.findFirst({
+    where: { user_id: session.user.id },
+    select: { role: true },
+  })
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  const role = (profile as { role: string } | null)?.role
-  if (role !== 'admin') return null
-
-  return { supabase, userId: user.id }
+  if (profile?.role !== 'admin') return null
+  return { userId: session.user.id }
 }
 
 export async function approveProviderAction(
@@ -37,24 +28,24 @@ export async function approveProviderAction(
   formData: FormData
 ): Promise<AdminActionState> {
   const admin = await verifyAdmin()
-  if (!admin) {
-    return { error: 'No tienes permisos de administrador.' }
-  }
+  if (!admin) return { error: 'No tienes permisos de administrador.' }
 
   const providerId = formData.get('provider_id') as string
-  if (!providerId) {
-    return { error: 'ID de proveedor no proporcionado.' }
-  }
+  if (!providerId) return { error: 'ID de proveedor no proporcionado.' }
 
-  const { error } = await updateTable(admin.supabase, 'provider_profiles', {
-    status: 'approved_incomplete',
-    approved_at: new Date().toISOString(),
-    approved_by: admin.userId,
-  }).eq('id', providerId)
+  const adminProfile = await prisma.profiles.findFirst({
+    where: { user_id: admin.userId },
+    select: { id: true },
+  })
 
-  if (error) {
-    return { error: 'Error al aprobar proveedor.' }
-  }
+  await prisma.provider_profiles.update({
+    where: { id: providerId },
+    data: {
+      status: 'approved_incomplete',
+      approved_at: new Date(),
+      approved_by: adminProfile?.id ?? null,
+    },
+  })
 
   revalidatePath('/admin/providers')
   return { success: 'Proveedor aprobado correctamente.' }
@@ -65,25 +56,16 @@ export async function rejectProviderAction(
   formData: FormData
 ): Promise<AdminActionState> {
   const admin = await verifyAdmin()
-  if (!admin) {
-    return { error: 'No tienes permisos de administrador.' }
-  }
+  if (!admin) return { error: 'No tienes permisos de administrador.' }
 
   const providerId = formData.get('provider_id') as string
   const reason = formData.get('rejection_reason') as string
+  if (!providerId) return { error: 'ID de proveedor no proporcionado.' }
 
-  if (!providerId) {
-    return { error: 'ID de proveedor no proporcionado.' }
-  }
-
-  const { error } = await updateTable(admin.supabase, 'provider_profiles', {
-    status: 'rejected',
-    rejection_reason: reason || 'No se proporciono motivo.',
-  }).eq('id', providerId)
-
-  if (error) {
-    return { error: 'Error al rechazar proveedor.' }
-  }
+  await prisma.provider_profiles.update({
+    where: { id: providerId },
+    data: { status: 'rejected', rejection_reason: reason || 'No se proporciono motivo.' },
+  })
 
   revalidatePath('/admin/providers')
   return { success: 'Proveedor rechazado.' }
@@ -94,21 +76,15 @@ export async function suspendProviderAction(
   formData: FormData
 ): Promise<AdminActionState> {
   const admin = await verifyAdmin()
-  if (!admin) {
-    return { error: 'No tienes permisos de administrador.' }
-  }
+  if (!admin) return { error: 'No tienes permisos de administrador.' }
 
   const providerId = formData.get('provider_id') as string
   const reason = formData.get('reason') as string
 
-  const { error } = await updateTable(admin.supabase, 'provider_profiles', {
-    status: 'suspended',
-    rejection_reason: reason || null,
-  }).eq('id', providerId)
-
-  if (error) {
-    return { error: 'Error al suspender proveedor.' }
-  }
+  await prisma.provider_profiles.update({
+    where: { id: providerId },
+    data: { status: 'suspended', rejection_reason: reason || null },
+  })
 
   revalidatePath('/admin/providers')
   return { success: 'Proveedor suspendido.' }
@@ -119,71 +95,36 @@ export async function approveExperienceAction(
   formData: FormData
 ): Promise<AdminActionState> {
   const admin = await verifyAdmin()
-  if (!admin) {
-    return { error: 'No tienes permisos de administrador.' }
-  }
+  if (!admin) return { error: 'No tienes permisos de administrador.' }
 
   const experienceId = formData.get('experience_id') as string
 
-  const { error } = await updateTable(admin.supabase, 'experiences', {
-    status: 'active',
-    published_at: new Date().toISOString(),
-  }).eq('id', experienceId)
-
-  if (error) {
-    return { error: 'Error al aprobar experiencia.' }
-  }
+  await prisma.experiences.update({
+    where: { id: experienceId },
+    data: { status: 'active', published_at: new Date() },
+  })
 
   revalidatePath('/admin/experiences')
   return { success: 'Experiencia aprobada y publicada.' }
 }
 
-export async function addRecommendationAction(
+export async function rejectExperienceAction(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
   const admin = await verifyAdmin()
   if (!admin) return { error: 'No tienes permisos de administrador.' }
 
-  const destinationId = formData.get('destination_id') as string
   const experienceId = formData.get('experience_id') as string
+  const reason = formData.get('rejection_reason') as string
 
-  if (!destinationId || !experienceId) return { error: 'Datos incompletos.' }
+  await prisma.experiences.update({
+    where: { id: experienceId },
+    data: { status: 'rejected', rejection_reason: reason || 'No se proporciono motivo.' },
+  })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (admin.supabase as any)
-    .from('destination_recommendations')
-    .insert({ destination_id: destinationId, experience_id: experienceId })
-
-  if (error) return { error: 'Error al agregar recomendacion.' }
-
-  revalidatePath(`/admin/destinations`)
-  return { success: 'Recomendacion agregada.' }
-}
-
-export async function removeRecommendationAction(
-  _prevState: AdminActionState,
-  formData: FormData
-): Promise<AdminActionState> {
-  const admin = await verifyAdmin()
-  if (!admin) return { error: 'No tienes permisos de administrador.' }
-
-  const destinationId = formData.get('destination_id') as string
-  const experienceId = formData.get('experience_id') as string
-
-  if (!destinationId || !experienceId) return { error: 'Datos incompletos.' }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (admin.supabase as any)
-    .from('destination_recommendations')
-    .delete()
-    .eq('destination_id', destinationId)
-    .eq('experience_id', experienceId)
-
-  if (error) return { error: 'Error al eliminar recomendacion.' }
-
-  revalidatePath(`/admin/destinations`)
-  return { success: 'Recomendacion eliminada.' }
+  revalidatePath('/admin/experiences')
+  return { success: 'Experiencia rechazada.' }
 }
 
 export async function toggleFeaturedAction(
@@ -196,37 +137,49 @@ export async function toggleFeaturedAction(
   const experienceId = formData.get('experience_id') as string
   const isFeatured = formData.get('is_featured') === 'true'
 
-  const { error } = await updateTable(admin.supabase, 'experiences', {
-    is_featured: !isFeatured,
-  }).eq('id', experienceId)
-
-  if (error) return { error: 'Error al actualizar estado featured.' }
+  await prisma.experiences.update({
+    where: { id: experienceId },
+    data: { is_featured: !isFeatured },
+  })
 
   revalidatePath('/admin/experiences')
   return { success: !isFeatured ? 'Marcada como recomendada.' : 'Quitada de recomendadas.' }
 }
 
-export async function rejectExperienceAction(
+export async function addRecommendationAction(
   _prevState: AdminActionState,
   formData: FormData
 ): Promise<AdminActionState> {
   const admin = await verifyAdmin()
-  if (!admin) {
-    return { error: 'No tienes permisos de administrador.' }
-  }
+  if (!admin) return { error: 'No tienes permisos de administrador.' }
 
+  const destinationId = formData.get('destination_id') as string
   const experienceId = formData.get('experience_id') as string
-  const reason = formData.get('rejection_reason') as string
+  if (!destinationId || !experienceId) return { error: 'Datos incompletos.' }
 
-  const { error } = await updateTable(admin.supabase, 'experiences', {
-    status: 'rejected',
-    rejection_reason: reason || 'No se proporciono motivo.',
-  }).eq('id', experienceId)
+  await prisma.destination_recommendations.create({
+    data: { destination_id: destinationId, experience_id: experienceId },
+  })
 
-  if (error) {
-    return { error: 'Error al rechazar experiencia.' }
-  }
+  revalidatePath('/admin/destinations')
+  return { success: 'Recomendacion agregada.' }
+}
 
-  revalidatePath('/admin/experiences')
-  return { success: 'Experiencia rechazada.' }
+export async function removeRecommendationAction(
+  _prevState: AdminActionState,
+  formData: FormData
+): Promise<AdminActionState> {
+  const admin = await verifyAdmin()
+  if (!admin) return { error: 'No tienes permisos de administrador.' }
+
+  const destinationId = formData.get('destination_id') as string
+  const experienceId = formData.get('experience_id') as string
+  if (!destinationId || !experienceId) return { error: 'Datos incompletos.' }
+
+  await prisma.destination_recommendations.deleteMany({
+    where: { destination_id: destinationId, experience_id: experienceId },
+  })
+
+  revalidatePath('/admin/destinations')
+  return { success: 'Recomendacion eliminada.' }
 }

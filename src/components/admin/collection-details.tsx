@@ -57,7 +57,11 @@ export function CollectionDetails({ collection, destinationId }: CollectionDetai
             <p className="text-sm text-muted-foreground">{collection.description}</p>
           )}
         </div>
-        <AddExperienceDialog collectionId={collection.id} destinationId={destinationId} />
+        <AddExperienceDialog
+          collectionId={collection.id}
+          destinationId={destinationId}
+          existingIds={experiences.map((ce) => ce.experiences.id)}
+        />
       </div>
 
       {experiences.length === 0 ? (
@@ -111,7 +115,7 @@ function ExperienceItem({
               <CardDescription className="flex items-center gap-3 mt-1">
                 <span className="flex items-center gap-1">
                   <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                  {experience.average_rating.toFixed(1)}
+                  {experience.average_rating != null ? Number(experience.average_rating).toFixed(1) : 'N/A'}
                 </span>
                 {experience.duration_minutes && (
                   <span className="flex items-center gap-1">
@@ -153,9 +157,11 @@ function ExperienceItem({
 function AddExperienceDialog({
   collectionId,
   destinationId,
+  existingIds,
 }: {
   collectionId: string
   destinationId: string
+  existingIds: string[]
 }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -209,12 +215,14 @@ function AddExperienceDialog({
 
   // Filter client-side
   const filtered = useMemo(() => {
+    const existingSet = new Set(existingIds)
     return allExperiences.filter((exp) => {
+      if (existingSet.has(exp.id)) return false
       const matchesSearch = search.length < 2 || exp.title.toLowerCase().includes(search.toLowerCase())
       const matchesCategory = !selectedCategory || exp.categories?.id === selectedCategory
       return matchesSearch && matchesCategory
     })
-  }, [allExperiences, search, selectedCategory])
+  }, [allExperiences, existingIds, search, selectedCategory])
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -310,7 +318,7 @@ function AddExperienceDialog({
                       <div className="flex items-center gap-2.5 mt-1 text-xs text-muted-foreground">
                         <span className="flex items-center gap-0.5">
                           <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                          {exp.average_rating.toFixed(1)}
+                          {exp.average_rating != null ? Number(exp.average_rating).toFixed(1) : 'N/A'}
                         </span>
                         {exp.duration_minutes && (
                           <span className="flex items-center gap-0.5">

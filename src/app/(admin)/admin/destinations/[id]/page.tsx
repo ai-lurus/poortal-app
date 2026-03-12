@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import prisma from '@/lib/prisma'
 import { getCollectionsByDestinationAdmin } from '@/queries/collections'
 import { getDestinationInfoCategories } from '@/queries/destination_info'
 import { DestinationCollectionsClient } from '@/components/admin/destination-collections-client'
@@ -23,25 +23,20 @@ interface Props {
 
 export default async function AdminDestinationCollectionsPage({ params }: Props) {
   const { id } = await params
-  const supabase = await createClient()
 
-  const { data: destination } = await supabase
-    .from('destinations')
-    .select('*')
-    .eq('id', id)
-    .single()
-
+  const destination = await prisma.destinations.findUnique({ where: { id } })
   if (!destination) notFound()
 
-  // Fetch data for both tabs
-  const collections = await getCollectionsByDestinationAdmin(id)
-  const infoCategories = await getDestinationInfoCategories(id)
+  const [collections, infoCategories] = await Promise.all([
+    getCollectionsByDestinationAdmin(id),
+    getDestinationInfoCategories(id),
+  ])
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">
-          {(destination as Destination).name}
+          {(destination as unknown as Destination).name}
         </h1>
         <p className="mt-1 text-muted-foreground">
           Gestiona las colecciones curadas y la información local de este destino

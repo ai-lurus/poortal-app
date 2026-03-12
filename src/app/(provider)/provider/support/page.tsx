@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-import { getProviderByUserId } from '@/queries/providers'
+import { headers } from 'next/headers'
+import { auth } from '@/lib/auth'
+import { getProviderByAuthUserId } from '@/queries/providers'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { HeadphonesIcon, MessageSquare, FileText, ExternalLink, Mail, Phone } from 'lucide-react'
@@ -32,11 +33,10 @@ const faqs = [
 ]
 
 export default async function ProviderSupportPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session?.user) redirect('/login')
 
-  const provider = await getProviderByUserId(user.id)
+  const provider = await getProviderByAuthUserId(session.user.id)
   if (!provider) redirect('/register/provider')
 
   const statusInfo = provider.status === 'active'

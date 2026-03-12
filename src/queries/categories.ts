@@ -1,36 +1,25 @@
-import { createClient } from '@/lib/supabase/server'
+import prisma from '@/lib/prisma'
 import type { Category, Subcategory } from '@/types'
 
 export async function getCategories(): Promise<Category[]> {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('categories')
-    .select('*')
-    .eq('is_active', true)
-    .order('sort_order')
-
-  return (data as Category[] | null) ?? []
+  const rows = await prisma.categories.findMany({
+    where: { is_active: true },
+    orderBy: { sort_order: 'asc' },
+  })
+  return rows as unknown as Category[]
 }
 
 export async function getCategoryBySlug(slug: string): Promise<Category | null> {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('categories')
-    .select('*')
-    .eq('slug', slug)
-    .single()
-
-  return data as Category | null
+  const row = await prisma.categories.findFirst({
+    where: { slug },
+  })
+  return row as unknown as Category | null
 }
 
 export async function getSubcategories(categoryId: string): Promise<Subcategory[]> {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('subcategories')
-    .select('*')
-    .eq('category_id', categoryId)
-    .eq('is_active', true)
-    .order('sort_order')
-
-  return (data as Subcategory[] | null) ?? []
+  const rows = await prisma.subcategories.findMany({
+    where: { category_id: categoryId, is_active: true },
+    orderBy: { sort_order: 'asc' },
+  })
+  return rows as unknown as Subcategory[]
 }

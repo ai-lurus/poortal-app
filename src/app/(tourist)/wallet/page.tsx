@@ -1,15 +1,16 @@
 import { Ticket } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
+import { headers } from 'next/headers'
+import { auth } from '@/lib/auth'
+import prisma from '@/lib/prisma'
 import { HomeHeader } from '@/components/home/home-header'
 import { WalletTickets } from './wallet-tickets'
 
 export const metadata = { title: 'Mi Wallet' }
 
 export default async function WalletPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const session = await auth.api.getSession({ headers: await headers() })
 
-  if (!user) {
+  if (!session?.user) {
     return (
       <>
         <HomeHeader />
@@ -30,25 +31,35 @@ export default async function WalletPage() {
     )
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: tickets } = await (supabase as any)
-    .from('tickets')
-    .select(`
-      id,
-      qr_code,
-      status,
-      service_date,
-      service_time,
-      quantity,
-      experiences (
-        title
-      ),
-      provider_profiles (
-        business_name
-      )
-    `)
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
+  const profile = await prisma.profiles.findFirst({
+    where: { user_id: session.user.id },
+    select: { id: true },
+  })
+
+  const ticketRows = profile
+    ? await prisma.tickets.findMany({
+        where: { user_id: profile.id },
+        select: {
+          id: true,
+          qr_code: true,
+          status: true,
+          service_date: true,
+          service_time: true,
+          quantity: true,
+          experiences: { select: { title: true } },
+          provider_profiles: { select: { business_name: true } },
+        },
+        orderBy: { created_at: 'desc' },
+      })
+    : []
+
+  const tickets = ticketRows.map((t) => ({
+    ...t,
+    service_date: t.service_date.toISOString().split('T')[0],
+    service_time: t.service_time
+      ? `${t.service_time.getUTCHours().toString().padStart(2, '0')}:${t.service_time.getUTCMinutes().toString().padStart(2, '0')}:${t.service_time.getUTCSeconds().toString().padStart(2, '0')}`
+      : null,
+  }))
 
   return (
     <div className="bg-background pb-20">
@@ -65,12 +76,12 @@ export default async function WalletPage() {
 
       {/* Mobile content */}
       <div className="md:hidden container mx-auto max-w-md px-6 pt-4">
-        <WalletTickets tickets={tickets ?? []} />
+        <WalletTickets tickets={tickets} />
       </div>
 
       {/* Desktop content */}
       <div className="hidden md:block container mx-auto max-w-6xl px-8 pt-8">
-        <WalletTickets tickets={tickets ?? []} />
+        <WalletTickets tickets={tickets} />
       </div>
     </div>
   )

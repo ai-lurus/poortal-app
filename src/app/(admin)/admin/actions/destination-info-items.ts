@@ -1,7 +1,7 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import prisma from '@/lib/prisma'
 
 export async function createInfoItem(
     data: {
@@ -15,29 +15,16 @@ export async function createInfoItem(
     },
     destinationId: string
 ) {
-    const supabase = await createClient()
+    const last = await prisma.destination_info_items.findFirst({
+        where: { category_id: data.category_id },
+        orderBy: { sort_order: 'desc' },
+        select: { sort_order: true },
+    })
+    const maxOrder = last?.sort_order ?? 0
 
-    // Find max sort order
-    const { data: items } = await supabase
-        .from('destination_info_items')
-        .select('sort_order')
-        .eq('category_id', data.category_id)
-        .order('sort_order', { ascending: false })
-        .limit(1)
-
-    const maxOrder = items?.[0]?.sort_order ?? 0
-
-    const { error } = await supabase
-        .from('destination_info_items')
-        .insert({
-            ...data,
-            sort_order: maxOrder + 1,
-        })
-
-    if (error) {
-        console.error('Error creating info item:', error)
-        return { success: false, error: 'Error al crear elemento de información' }
-    }
+    await prisma.destination_info_items.create({
+        data: { ...data, sort_order: maxOrder + 1 },
+    })
 
     revalidatePath(`/admin/destinations/${destinationId}`)
     return { success: true }
@@ -55,59 +42,31 @@ export async function updateInfoItem(
     },
     destinationId: string
 ) {
-    const supabase = await createClient()
-
-    const { error } = await supabase
-        .from('destination_info_items')
-        .update(data)
-        .eq('id', id)
-
-    if (error) {
-        console.error('Error updating info item:', error)
-        return { success: false, error: 'Error al actualizar elemento' }
-    }
+    await prisma.destination_info_items.update({
+        where: { id },
+        data,
+    })
 
     revalidatePath(`/admin/destinations/${destinationId}`)
     return { success: true }
 }
 
 export async function deleteInfoItem(id: string, destinationId: string) {
-    const supabase = await createClient()
-
-    const { error } = await supabase
-        .from('destination_info_items')
-        .delete()
-        .eq('id', id)
-
-    if (error) {
-        console.error('Error deleting info item:', error)
-        return { success: false, error: 'Error al eliminar elemento' }
-    }
+    await prisma.destination_info_items.delete({ where: { id } })
 
     revalidatePath(`/admin/destinations/${destinationId}`)
     return { success: true }
 }
 
-export async function updateInfoItemsOrder(
-    orderedIds: string[],
-    destinationId: string
-) {
-    const supabase = await createClient()
-
-    const results = await Promise.all(
+export async function updateInfoItemsOrder(orderedIds: string[], destinationId: string) {
+    await Promise.all(
         orderedIds.map((id, index) =>
-            supabase
-                .from('destination_info_items')
-                .update({ sort_order: index })
-                .eq('id', id)
+            prisma.destination_info_items.update({
+                where: { id },
+                data: { sort_order: index },
+            })
         )
     )
-
-    const error = results.find((r) => r.error)?.error
-    if (error) {
-        console.error('Error updating info items order:', error)
-        return { success: false, error: 'Error al reordenar elementos' }
-    }
 
     revalidatePath(`/admin/destinations/${destinationId}`)
     return { success: true }

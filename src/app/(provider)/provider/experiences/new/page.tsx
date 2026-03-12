@@ -1,6 +1,9 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-import type { ProviderProfile, Category, Destination } from '@/types'
+import { headers } from 'next/headers'
+import { auth } from '@/lib/auth'
+import { getProviderByAuthUserId } from '@/queries/providers'
+import { getCategories } from '@/queries/categories'
+import { getDestinations } from '@/queries/destinations'
 import { ExperienceForm } from '@/components/provider/experience-form'
 
 export const metadata = {
@@ -8,25 +11,18 @@ export const metadata = {
 }
 
 export default async function NewExperiencePage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session?.user) redirect('/login')
 
-  const { data: provider } = await supabase
-    .from('provider_profiles')
-    .select('*')
-    .eq('user_id', user.id)
-    .single()
-
-  const typedProvider = provider as ProviderProfile | null
-  if (!typedProvider) redirect('/register/provider')
-  if (typedProvider.status !== 'active' && typedProvider.status !== 'approved_incomplete') {
+  const provider = await getProviderByAuthUserId(session.user.id)
+  if (!provider) redirect('/register/provider')
+  if (provider.status !== 'active' && provider.status !== 'approved_incomplete') {
     redirect('/provider/onboarding')
   }
 
-  const [{ data: categories }, { data: destinations }] = await Promise.all([
-    supabase.from('categories').select('*').eq('is_active', true).order('sort_order'),
-    supabase.from('destinations').select('*').eq('is_active', true).order('name'),
+  const [categories, destinations] = await Promise.all([
+    getCategories(),
+    getDestinations(),
   ])
 
   return (
@@ -39,8 +35,8 @@ export default async function NewExperiencePage() {
       </div>
 
       <ExperienceForm
-        categories={(categories as Category[] | null) ?? []}
-        destinations={(destinations as Destination[] | null) ?? []}
+        categories={categories}
+        destinations={destinations}
       />
     </div>
   )

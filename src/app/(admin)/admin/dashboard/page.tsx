@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import type { Metadata } from 'next'
+import prisma from '@/lib/prisma'
 import {
   Card,
   CardContent,
@@ -20,46 +21,69 @@ export const metadata: Metadata = {
   title: 'Admin Dashboard',
 }
 
-const stats = [
-  {
-    title: 'Total usuarios',
-    value: '1,284',
-    description: '+12% vs mes anterior',
-    icon: Users,
-  },
-  {
-    title: 'Proveedores activos',
-    value: '47',
-    description: '3 pendientes de aprobacion',
-    icon: Building2,
-  },
-  {
-    title: 'Experiencias activas',
-    value: '156',
-    description: '8 en revision',
-    icon: Compass,
-  },
-  {
-    title: 'Reservas del mes',
-    value: '342',
-    description: '+28% vs mes anterior',
-    icon: CalendarCheck,
-  },
-  {
-    title: 'Ingresos del mes',
-    value: '$485,200 MXN',
-    description: 'Comision: $48,520 MXN',
-    icon: DollarSign,
-  },
-  {
-    title: 'Disputas pendientes',
-    value: '3',
-    description: '2 urgentes',
-    icon: AlertTriangle,
-  },
-]
+export default async function AdminDashboardPage() {
+  const [
+    totalUsers,
+    activeProviders,
+    pendingProviders,
+    activeExperiences,
+    pendingExperiences,
+    monthBookings,
+    pendingDisputes,
+  ] = await Promise.all([
+    prisma.profiles.count(),
+    prisma.provider_profiles.count({ where: { status: 'active' } }),
+    prisma.provider_profiles.count({ where: { status: 'pending_review' } }),
+    prisma.experiences.count({ where: { status: 'active' } }),
+    prisma.experiences.count({ where: { status: 'pending_review' } }),
+    prisma.bookings.count({
+      where: {
+        created_at: { gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
+        status: { notIn: ['cancelled', 'refunded'] },
+      },
+    }),
+    prisma.cancellations.count(),
+  ])
 
-export default function AdminDashboardPage() {
+  const stats = [
+    {
+      title: 'Total usuarios',
+      value: totalUsers.toString(),
+      description: 'Registrados en la plataforma',
+      icon: Users,
+    },
+    {
+      title: 'Proveedores activos',
+      value: activeProviders.toString(),
+      description: `${pendingProviders} pendientes de aprobacion`,
+      icon: Building2,
+    },
+    {
+      title: 'Experiencias activas',
+      value: activeExperiences.toString(),
+      description: `${pendingExperiences} en revision`,
+      icon: Compass,
+    },
+    {
+      title: 'Reservas del mes',
+      value: monthBookings.toString(),
+      description: 'Mes actual',
+      icon: CalendarCheck,
+    },
+    {
+      title: 'Ingresos del mes',
+      value: '—',
+      description: 'Stripe no configurado aun',
+      icon: DollarSign,
+    },
+    {
+      title: 'Cancelaciones pendientes',
+      value: pendingDisputes.toString(),
+      description: 'Total registradas',
+      icon: AlertTriangle,
+    },
+  ]
+
   return (
     <div className="space-y-8">
       <div>

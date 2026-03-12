@@ -1,7 +1,7 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import prisma from '@/lib/prisma'
 
 export async function createInfoCategory(data: {
     destination_id: string
@@ -11,29 +11,16 @@ export async function createInfoCategory(data: {
     color: string | null
     subtitle: string | null
 }) {
-    const supabase = await createClient()
+    const last = await prisma.destination_info_categories.findFirst({
+        where: { destination_id: data.destination_id },
+        orderBy: { sort_order: 'desc' },
+        select: { sort_order: true },
+    })
+    const maxOrder = last?.sort_order ?? 0
 
-    // Find max sort order
-    const { data: categories } = await supabase
-        .from('destination_info_categories')
-        .select('sort_order')
-        .eq('destination_id', data.destination_id)
-        .order('sort_order', { ascending: false })
-        .limit(1)
-
-    const maxOrder = categories?.[0]?.sort_order ?? 0
-
-    const { error } = await supabase
-        .from('destination_info_categories')
-        .insert({
-            ...data,
-            sort_order: maxOrder + 1,
-        })
-
-    if (error) {
-        console.error('Error creating info category:', error)
-        return { success: false, error: 'Error al crear categoría de información' }
-    }
+    await prisma.destination_info_categories.create({
+        data: { ...data, sort_order: maxOrder + 1 },
+    })
 
     revalidatePath(`/admin/destinations/${data.destination_id}`)
     return { success: true }
@@ -50,59 +37,31 @@ export async function updateInfoCategory(
     },
     destinationId: string
 ) {
-    const supabase = await createClient()
-
-    const { error } = await supabase
-        .from('destination_info_categories')
-        .update(data)
-        .eq('id', id)
-
-    if (error) {
-        console.error('Error updating info category:', error)
-        return { success: false, error: 'Error al actualizar categoría de información' }
-    }
+    await prisma.destination_info_categories.update({
+        where: { id },
+        data,
+    })
 
     revalidatePath(`/admin/destinations/${destinationId}`)
     return { success: true }
 }
 
 export async function deleteInfoCategory(id: string, destinationId: string) {
-    const supabase = await createClient()
-
-    const { error } = await supabase
-        .from('destination_info_categories')
-        .delete()
-        .eq('id', id)
-
-    if (error) {
-        console.error('Error deleting info category:', error)
-        return { success: false, error: 'Error al eliminar categoría de información' }
-    }
+    await prisma.destination_info_categories.delete({ where: { id } })
 
     revalidatePath(`/admin/destinations/${destinationId}`)
     return { success: true }
 }
 
-export async function updateInfoCategoriesOrder(
-    orderedIds: string[],
-    destinationId: string
-) {
-    const supabase = await createClient()
-
-    const results = await Promise.all(
+export async function updateInfoCategoriesOrder(orderedIds: string[], destinationId: string) {
+    await Promise.all(
         orderedIds.map((id, index) =>
-            supabase
-                .from('destination_info_categories')
-                .update({ sort_order: index })
-                .eq('id', id)
+            prisma.destination_info_categories.update({
+                where: { id },
+                data: { sort_order: index },
+            })
         )
     )
-
-    const error = results.find((r) => r.error)?.error
-    if (error) {
-        console.error('Error updating info categories order:', error)
-        return { success: false, error: 'Error al reordenar categorías' }
-    }
 
     revalidatePath(`/admin/destinations/${destinationId}`)
     return { success: true }

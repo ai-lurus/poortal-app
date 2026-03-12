@@ -130,7 +130,7 @@ export function Header() {
                 )}
 
                 {/* Provider links */}
-                {(profile.role === 'provider' || profile.role === 'admin') && (
+                {profile.role === 'provider' && (
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild>

@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
-import { getProviderByUserId } from '@/queries/providers'
+import { headers } from 'next/headers'
+import { auth } from '@/lib/auth'
+import { getProviderByAuthUserId } from '@/queries/providers'
 import { getExperiencesByProvider } from '@/queries/experiences'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -48,11 +49,10 @@ function ExperienceRow({ exp }: { exp: Experience }) {
 }
 
 export default async function ProviderExperiencesPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session?.user) redirect('/login')
 
-  const provider = await getProviderByUserId(user.id)
+  const provider = await getProviderByAuthUserId(session.user.id)
   if (!provider) redirect('/register/provider')
 
   const experiences = await getExperiencesByProvider(provider.id)

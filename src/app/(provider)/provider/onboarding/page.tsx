@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
-import type { ProviderProfile } from '@/types'
+import { headers } from 'next/headers'
+import { auth } from '@/lib/auth'
+import { getProviderByAuthUserId } from '@/queries/providers'
 import { OnboardingClient } from './onboarding-client'
 
 export const metadata = {
@@ -8,19 +9,10 @@ export const metadata = {
 }
 
 export default async function ProviderOnboardingPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session?.user) redirect('/login')
 
-  if (!user) redirect('/login')
-
-  const { data } = await supabase
-    .from('provider_profiles')
-    .select('*')
-    .eq('user_id', user.id)
-    .single()
-
-  const provider = data as ProviderProfile | null
-
+  const provider = await getProviderByAuthUserId(session.user.id)
   if (!provider) redirect('/register/provider')
 
   return <OnboardingClient provider={provider} />

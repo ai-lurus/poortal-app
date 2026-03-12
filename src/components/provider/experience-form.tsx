@@ -20,16 +20,17 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { createBrowserClient } from '@supabase/ssr'
 import type { Category, Destination, Subcategory, Experience } from '@/types'
+import { ImageUploader } from './image-uploader'
 
 interface ExperienceFormProps {
   categories: Category[]
   destinations: Destination[]
   experience?: Experience | null
+  initialImages?: Array<{ id: string; url: string; alt_text: string | null; sort_order: number; is_cover: boolean }>
 }
 
-export function ExperienceForm({ categories, destinations, experience }: ExperienceFormProps) {
+export function ExperienceForm({ categories, destinations, experience, initialImages }: ExperienceFormProps) {
   const isEdit = !!experience
   const action = isEdit ? updateExperienceAction : createExperienceAction
 
@@ -47,19 +48,9 @@ export function ExperienceForm({ categories, destinations, experience }: Experie
       setSubcategories([])
       return
     }
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-    supabase
-      .from('subcategories')
-      .select('*')
-      .eq('category_id', selectedCategory)
-      .eq('is_active', true)
-      .order('sort_order')
-      .then(({ data }) => {
-        setSubcategories((data as Subcategory[] | null) ?? [])
-      })
+    fetch(`/api/subcategories?categoryId=${selectedCategory}`)
+      .then((res) => res.json())
+      .then(({ subcategories }) => setSubcategories(subcategories ?? []))
   }, [selectedCategory])
 
   function generateSlug(title: string) {
@@ -155,7 +146,8 @@ export function ExperienceForm({ categories, destinations, experience }: Experie
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>Destino *</Label>
-            <Select value={selectedDestination} onValueChange={setSelectedDestination} required>
+            <input type="hidden" name="destination_id" value={selectedDestination} />
+            <Select value={selectedDestination || undefined} onValueChange={setSelectedDestination}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecciona destino" />
               </SelectTrigger>
@@ -165,13 +157,13 @@ export function ExperienceForm({ categories, destinations, experience }: Experie
                 ))}
               </SelectContent>
             </Select>
-            <input type="hidden" name="destination_id" value={selectedDestination} />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Categoria *</Label>
-              <Select value={selectedCategory} onValueChange={(v) => { setSelectedCategory(v); setSelectedSubcategory('') }} required>
+              <input type="hidden" name="category_id" value={selectedCategory} />
+              <Select value={selectedCategory || undefined} onValueChange={(v) => { setSelectedCategory(v); setSelectedSubcategory('') }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona categoria" />
                 </SelectTrigger>
@@ -181,12 +173,12 @@ export function ExperienceForm({ categories, destinations, experience }: Experie
                   ))}
                 </SelectContent>
               </Select>
-              <input type="hidden" name="category_id" value={selectedCategory} />
             </div>
 
             <div className="space-y-2">
               <Label>Subcategoria</Label>
-              <Select value={selectedSubcategory} onValueChange={setSelectedSubcategory}>
+              <input type="hidden" name="subcategory_id" value={selectedSubcategory} />
+              <Select value={selectedSubcategory || undefined} onValueChange={setSelectedSubcategory}>
                 <SelectTrigger>
                   <SelectValue placeholder={subcategories.length ? 'Selecciona' : 'Selecciona categoria primero'} />
                 </SelectTrigger>
@@ -196,7 +188,6 @@ export function ExperienceForm({ categories, destinations, experience }: Experie
                   ))}
                 </SelectContent>
               </Select>
-              <input type="hidden" name="subcategory_id" value={selectedSubcategory} />
             </div>
           </div>
         </CardContent>
@@ -266,6 +257,7 @@ export function ExperienceForm({ categories, destinations, experience }: Experie
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="space-y-2">
               <Label>Tipo de precio *</Label>
+              <input type="hidden" name="pricing_type" value={selectedPricingType} />
               <Select value={selectedPricingType} onValueChange={setSelectedPricingType}>
                 <SelectTrigger>
                   <SelectValue />
@@ -276,7 +268,6 @@ export function ExperienceForm({ categories, destinations, experience }: Experie
                   <SelectItem value="flat_rate">Tarifa fija</SelectItem>
                 </SelectContent>
               </Select>
-              <input type="hidden" name="pricing_type" value={selectedPricingType} />
             </div>
 
             <div className="space-y-2">
@@ -295,6 +286,7 @@ export function ExperienceForm({ categories, destinations, experience }: Experie
 
             <div className="space-y-2">
               <Label>Politica de cancelacion *</Label>
+              <input type="hidden" name="cancellation_policy" value={selectedCancellation} />
               <Select value={selectedCancellation} onValueChange={setSelectedCancellation}>
                 <SelectTrigger>
                   <SelectValue />
@@ -305,7 +297,6 @@ export function ExperienceForm({ categories, destinations, experience }: Experie
                   <SelectItem value="strict">Estricta</SelectItem>
                 </SelectContent>
               </Select>
-              <input type="hidden" name="cancellation_policy" value={selectedCancellation} />
             </div>
           </div>
 
@@ -345,6 +336,23 @@ export function ExperienceForm({ categories, destinations, experience }: Experie
             defaultValues={experience?.requirements as string[] || []}
           />
         </CardContent>
+      </Card>
+
+      {/* Images */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Fotos</CardTitle>
+          <CardDescription>
+            {isEdit
+              ? 'Sube fotos de la experiencia. La primera se usará como portada.'
+              : 'Podrás subir fotos después de crear la experiencia.'}
+          </CardDescription>
+        </CardHeader>
+        {isEdit && experience?.id && (
+          <CardContent>
+            <ImageUploader experienceId={experience.id} initialImages={initialImages} />
+          </CardContent>
+        )}
       </Card>
 
       <div className="flex gap-4">

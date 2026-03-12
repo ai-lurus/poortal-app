@@ -1,28 +1,21 @@
-import { createClient } from '@/lib/supabase/server'
+import { auth } from '@/lib/auth'
+import { headers } from 'next/headers'
+import prisma from '@/lib/prisma'
 import type { Profile } from '@/types'
 
 export async function getCurrentProfile(): Promise<Profile | null> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session?.user) return null
 
-  if (!user) return null
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
-
-  return profile
+  const profile = await prisma.profiles.findFirst({
+    where: { user_id: session.user.id },
+  })
+  return profile as unknown as Profile | null
 }
 
 export async function getProfileById(id: string): Promise<Profile | null> {
-  const supabase = await createClient()
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', id)
-    .single()
-
-  return profile
+  const profile = await prisma.profiles.findUnique({
+    where: { id },
+  })
+  return profile as unknown as Profile | null
 }

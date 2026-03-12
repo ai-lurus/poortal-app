@@ -1,43 +1,27 @@
 "use client"
 
-import { useEffect, useRef, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
-import type { User } from '@supabase/supabase-js'
+import { useEffect, useState } from 'react'
+import { useSession } from '@/lib/auth-client'
 import type { Profile } from '@/types'
 
 export function useAuth() {
-  const supabaseRef = useRef(createClient())
-  const [user, setUser] = useState<User | null>(null)
+  const { data: session, isPending } = useSession()
   const [profile, setProfile] = useState<Profile | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [profileLoading, setProfileLoading] = useState(false)
 
   useEffect(() => {
-    const supabase = supabaseRef.current
-
-    async function fetchProfile(userId: string) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single()
-      setProfile(data as Profile | null)
+    if (!session?.user) {
+      setProfile(null)
+      return
     }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        const currentUser = session?.user ?? null
-        setUser(currentUser)
-        if (currentUser) {
-          await fetchProfile(currentUser.id)
-        } else {
-          setProfile(null)
-        }
-        setLoading(false)
-      }
-    )
+    setProfileLoading(true)
+    fetch('/api/profile')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setProfile(data?.profile ?? null))
+      .catch(() => setProfile(null))
+      .finally(() => setProfileLoading(false))
+  }, [session?.user?.id])
 
-    return () => subscription.unsubscribe()
-  }, [])
-
-  return { user, profile, loading }
+  return { user: session?.user ?? null, profile, loading: isPending || profileLoading }
 }

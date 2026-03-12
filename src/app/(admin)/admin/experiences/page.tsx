@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import type { Metadata } from 'next'
-import { createClient } from '@/lib/supabase/server'
+import prisma from '@/lib/prisma'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Clock, CheckCircle, AlertCircle } from 'lucide-react'
@@ -40,40 +40,61 @@ type ExperienceRow = {
   experience_images: { url: string; alt_text: string | null; is_cover: boolean; sort_order: number }[]
 }
 
+const experienceSelect = {
+  id: true,
+  title: true,
+  slug: true,
+  status: true,
+  price_amount: true,
+  price_currency: true,
+  pricing_type: true,
+  duration_minutes: true,
+  max_capacity: true,
+  min_capacity: true,
+  cancellation_policy: true,
+  short_description: true,
+  description: true,
+  meeting_point: true,
+  rejection_reason: true,
+  created_at: true,
+  provider_profiles: {
+    select: {
+      business_name: true,
+      representative_name: true,
+      phone: true,
+      location: true,
+      status: true,
+    },
+  },
+  categories: { select: { name: true } },
+  destinations: { select: { name: true } },
+  experience_images: {
+    select: { url: true, alt_text: true, is_cover: true, sort_order: true },
+    orderBy: { sort_order: 'asc' as const },
+  },
+}
+
 export default async function AdminExperiencesPage() {
-  const supabase = await createClient()
+  const serialize = (list: Awaited<ReturnType<typeof prisma.experiences.findMany<{ select: typeof experienceSelect }>>>) =>
+    list.map((exp) => ({ ...exp, price_amount: Number(exp.price_amount), created_at: exp.created_at.toISOString() }))
 
-  const selectFields = `
-    id, title, slug, status, price_amount, price_currency, pricing_type,
-    duration_minutes, max_capacity, min_capacity, cancellation_policy,
-    short_description, description, meeting_point, rejection_reason, created_at,
-    provider_profiles (business_name, representative_name, phone, location, status),
-    categories (name),
-    destinations (name),
-    experience_images (url, alt_text, is_cover, sort_order)
-  `
-
-  const [{ data: pending }, { data: active }, { data: rejected }] = await Promise.all([
-    supabase
-      .from('experiences')
-      .select(selectFields)
-      .eq('status', 'pending_review')
-      .order('created_at', { ascending: false }),
-    supabase
-      .from('experiences')
-      .select(selectFields)
-      .eq('status', 'active')
-      .order('created_at', { ascending: false }),
-    supabase
-      .from('experiences')
-      .select(selectFields)
-      .in('status', ['rejected', 'draft', 'paused'])
-      .order('created_at', { ascending: false }),
+  const [pendingList, activeList, rejectedList] = await Promise.all([
+    prisma.experiences.findMany({
+      where: { status: 'pending_review' },
+      select: experienceSelect,
+      orderBy: { created_at: 'desc' },
+    }).then(serialize),
+    prisma.experiences.findMany({
+      where: { status: 'active' },
+      select: experienceSelect,
+      orderBy: { created_at: 'desc' },
+    }).then(serialize),
+    prisma.experiences.findMany({
+      where: { status: { in: ['rejected', 'draft', 'paused'] } },
+      select: experienceSelect,
+      orderBy: { created_at: 'desc' },
+    }).then(serialize),
   ])
-
-  const pendingList = (pending as ExperienceRow[] | null) ?? []
-  const activeList = (active as ExperienceRow[] | null) ?? []
-  const rejectedList = (rejected as ExperienceRow[] | null) ?? []
 
   return (
     <div className="space-y-8">
@@ -109,7 +130,7 @@ export default async function AdminExperiencesPage() {
 
         <TabsContent value="pendientes" className="mt-6">
           <ExperienceModeration
-            experiences={pendingList}
+            experiences={pendingList as ExperienceRow[]}
             showActions
             emptyMessage="No hay experiencias pendientes de revision."
           />
@@ -117,14 +138,14 @@ export default async function AdminExperiencesPage() {
 
         <TabsContent value="activas" className="mt-6">
           <ExperienceModeration
-            experiences={activeList}
+            experiences={activeList as ExperienceRow[]}
             emptyMessage="No hay experiencias activas todavia."
           />
         </TabsContent>
 
         <TabsContent value="otras" className="mt-6">
           <ExperienceModeration
-            experiences={rejectedList}
+            experiences={rejectedList as ExperienceRow[]}
             emptyMessage="No hay experiencias rechazadas."
           />
         </TabsContent>

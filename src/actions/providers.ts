@@ -1,23 +1,27 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { auth } from '@/lib/auth'
+import { headers } from 'next/headers'
+import prisma from '@/lib/prisma'
 import { providerRegistrationSchema, providerCompleteProfileSchema } from '@/lib/validations/provider'
-import type { SupabaseClient } from '@supabase/supabase-js'
 
 export type ProviderActionState = {
   error?: string
   success?: string
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function insertInto(supabase: SupabaseClient<any>, table: string, data: Record<string, unknown>) {
-  return supabase.from(table).insert(data)
-}
+async function getCurrentProfileId(): Promise<{ userId: string; profileId: string } | null> {
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session?.user) return null
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function updateTable(supabase: SupabaseClient<any>, table: string, data: Record<string, unknown>) {
-  return supabase.from(table).update(data)
+  const profile = await prisma.profiles.findFirst({
+    where: { user_id: session.user.id },
+    select: { id: true },
+  })
+  if (!profile) return null
+
+  return { userId: session.user.id, profileId: profile.id }
 }
 
 export async function registerProviderAction(
@@ -36,56 +40,40 @@ export async function registerProviderAction(
   }
 
   const parsed = providerRegistrationSchema.safeParse(rawData)
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0].message }
-  }
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
 
-  const supabase = await createClient()
+  const current = await getCurrentProfileId()
+  if (!current) return { error: 'Debes iniciar sesion para registrar tu negocio.' }
 
-  // Get current user
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { error: 'Debes iniciar sesion para registrar tu negocio.' }
-  }
+  const existing = await prisma.provider_profiles.findFirst({
+    where: { user_id: current.profileId },
+    select: { id: true },
+  })
+  if (existing) return { error: 'Ya tienes un perfil de proveedor registrado.' }
 
-  // Check if already registered
-  const { data: existing } = await supabase
-    .from('provider_profiles')
-    .select('id')
-    .eq('user_id', user.id)
-    .single()
-
-  if (existing) {
-    return { error: 'Ya tienes un perfil de proveedor registrado.' }
-  }
-
-  // Get default destination (Cancun)
-  const { data: destData } = await supabase
-    .from('destinations')
-    .select('id')
-    .eq('slug', 'cancun')
-    .single()
-  const destination = destData as { id: string } | null
-
-  // Create provider profile
-  const { error } = await insertInto(supabase, 'provider_profiles', {
-    user_id: user.id,
-    destination_id: destination?.id ?? null,
-    business_name: parsed.data.business_name,
-    representative_name: parsed.data.representative_name,
-    phone: parsed.data.phone,
-    location: parsed.data.location,
-    category_id: parsed.data.category_id,
-    short_description: parsed.data.short_description,
-    status: 'pending_review',
+  const destination = await prisma.destinations.findFirst({
+    where: { slug: 'cancun' },
+    select: { id: true },
   })
 
-  if (error) {
-    return { error: 'Error al registrar tu negocio. Intenta de nuevo.' }
-  }
+  await prisma.provider_profiles.create({
+    data: {
+      user_id: current.profileId,
+      destination_id: destination?.id ?? null,
+      business_name: parsed.data.business_name,
+      representative_name: parsed.data.representative_name,
+      phone: parsed.data.phone,
+      location: parsed.data.location,
+      category_id: parsed.data.category_id,
+      short_description: parsed.data.short_description,
+      status: 'pending_review',
+    },
+  })
 
-  // Update user role to provider
-  await updateTable(supabase, 'profiles', { role: 'provider' }).eq('id', user.id)
+  await prisma.profiles.update({
+    where: { id: current.profileId },
+    data: { role: 'provider' },
+  })
 
   redirect('/provider/onboarding')
 }
@@ -104,28 +92,22 @@ export async function completeProviderProfileAction(
   }
 
   const parsed = providerCompleteProfileSchema.safeParse(rawData)
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0].message }
-  }
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { error: 'Debes iniciar sesion.' }
-  }
+  const current = await getCurrentProfileId()
+  if (!current) return { error: 'Debes iniciar sesion.' }
 
-  const { error } = await updateTable(supabase, 'provider_profiles', {
-    legal_name: parsed.data.legal_name,
-    tax_id: parsed.data.tax_id || null,
-    full_address: parsed.data.full_address,
-    customer_phone: parsed.data.customer_phone,
-    website: parsed.data.website || null,
-    operating_hours: parsed.data.operating_hours ? { description: parsed.data.operating_hours } : null,
-  }).eq('user_id', user.id)
-
-  if (error) {
-    return { error: 'Error al actualizar tu perfil. Intenta de nuevo.' }
-  }
+  await prisma.provider_profiles.updateMany({
+    where: { user_id: current.profileId },
+    data: {
+      legal_name: parsed.data.legal_name,
+      tax_id: parsed.data.tax_id || null,
+      full_address: parsed.data.full_address,
+      customer_phone: parsed.data.customer_phone,
+      website: parsed.data.website || null,
+      operating_hours: parsed.data.operating_hours ? { description: parsed.data.operating_hours } : undefined,
+    },
+  })
 
   return { success: 'Perfil actualizado correctamente.' }
 }

@@ -1,49 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { auth } from '@/lib/auth'
+import prisma from '@/lib/prisma'
 
 export async function GET(request: NextRequest) {
-  const supabase = await createClient()
+  const session = await auth.api.getSession({ headers: request.headers })
+  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Verify admin
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if ((profile as { role: string } | null)?.role !== 'admin') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  const profile = await prisma.profiles.findFirst({
+    where: { user_id: session.user.id },
+    select: { role: true },
+  })
+  if (profile?.role !== 'admin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { searchParams } = request.nextUrl
   const query = searchParams.get('q') ?? ''
   const destinationId = searchParams.get('destination_id')
   const categoryId = searchParams.get('category_id')
 
-  let dbQuery = (supabase as any)
-    .from('experiences')
-    .select('id, title, slug, price_amount, price_currency, average_rating, duration_minutes, status, categories(id, name)')
-    .neq('status', 'archived')
-    .limit(50)
+  const experiences = await prisma.experiences.findMany({
+    where: {
+      status: { not: 'archived' },
+      ...(query.length >= 2 ? { title: { contains: query, mode: 'insensitive' } } : {}),
+      ...(destinationId ? { destination_id: destinationId } : {}),
+      ...(categoryId ? { category_id: categoryId } : {}),
+    },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      price_amount: true,
+      price_currency: true,
+      average_rating: true,
+      duration_minutes: true,
+      status: true,
+      categories: { select: { id: true, name: true } },
+    },
+    take: 50,
+  })
 
-  if (query.length >= 2) {
-    dbQuery = dbQuery.ilike('title', `%${query}%`)
-  }
-
-  if (destinationId) {
-    dbQuery = dbQuery.eq('destination_id', destinationId)
-  }
-
-  if (categoryId) {
-    dbQuery = dbQuery.eq('category_id', categoryId)
-  }
-
-  const { data, error } = await dbQuery
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  return NextResponse.json(data ?? [])
+  return NextResponse.json(experiences)
 }

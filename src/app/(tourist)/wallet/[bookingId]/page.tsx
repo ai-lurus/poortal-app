@@ -1,20 +1,22 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
-import { createClient } from '@/lib/supabase/server'
+import { headers } from 'next/headers'
+import { auth } from '@/lib/auth'
+import prisma from '@/lib/prisma'
 import { ROUTES } from '@/lib/constants'
 import { QrCodeDisplay } from './qr-code-display'
 import { HomeHeader } from '@/components/home/home-header'
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
-function formatDate(dateStr: string) {
-  const d = new Date(dateStr + 'T00:00:00')
-  return `${d.getDate()} ${MONTH_LABELS[d.getMonth()]} ${d.getFullYear()}`
+function formatDate(date: Date) {
+  return `${date.getUTCDate()} ${MONTH_LABELS[date.getUTCMonth()]} ${date.getUTCFullYear()}`
 }
 
-function formatTime(time: string) {
-  const [h, m] = time.split(':').map(Number)
+function formatTime(time: Date) {
+  const h = time.getUTCHours()
+  const m = time.getUTCMinutes()
   const ampm = h >= 12 ? 'pm' : 'am'
   const h12 = h % 12 || 12
   return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`
@@ -28,33 +30,28 @@ export default async function TicketDetailPage({
   params: Promise<{ bookingId: string }>
 }) {
   const { bookingId } = await params
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session?.user) notFound()
 
-  if (!user) notFound()
+  const profile = await prisma.profiles.findFirst({
+    where: { user_id: session.user.id },
+    select: { id: true },
+  })
+  if (!profile) notFound()
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: ticket } = await (supabase as any)
-    .from('tickets')
-    .select(`
-      id,
-      qr_code,
-      status,
-      service_date,
-      service_time,
-      quantity,
-      experiences (
-        title,
-        short_description
-      ),
-      provider_profiles (
-        business_name
-      )
-    `)
-    .eq('id', bookingId)
-    .eq('user_id', user.id)
-    .single()
-
+  const ticket = await prisma.tickets.findFirst({
+    where: { id: bookingId, user_id: profile.id },
+    select: {
+      id: true,
+      qr_code: true,
+      status: true,
+      service_date: true,
+      service_time: true,
+      quantity: true,
+      experiences: { select: { title: true, short_description: true } },
+      provider_profiles: { select: { business_name: true } },
+    },
+  })
   if (!ticket) notFound()
 
   return (

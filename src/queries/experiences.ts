@@ -1,4 +1,5 @@
-import { createClient } from '@/lib/supabase/server'
+import prisma from '@/lib/prisma'
+import { Prisma } from '@/generated/prisma/client'
 import type { Experience, ExperienceSearchResult } from '@/types'
 
 async function rpcSearch(params: {
@@ -14,21 +15,25 @@ async function rpcSearch(params: {
   page_size?: number
   page_offset?: number
 }): Promise<ExperienceSearchResult[]> {
-  // Log params to server console for debugging
   console.log('[Experiences] Fetching with params:', JSON.stringify(params, null, 2))
 
-  const supabase = await createClient()
+  const results = await prisma.$queryRaw<ExperienceSearchResult[]>(
+    Prisma.sql`SELECT * FROM search_experiences(
+      ${params.search_query ?? null}::text,
+      ${params.dest_id ?? null}::uuid,
+      ${params.cat_id ?? null}::uuid,
+      ${params.subcat_id ?? null}::uuid,
+      ${params.min_price ?? null}::numeric,
+      ${params.max_price ?? null}::numeric,
+      ${params.min_rating ?? null}::numeric,
+      ${params.available_date ?? null}::date,
+      ${params.sort_by ?? 'relevance'}::text,
+      ${params.page_size ?? 20}::int,
+      ${params.page_offset ?? 0}::int
+    )`
+  )
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase as any).rpc('search_experiences', params)
-
-  if (error) {
-    console.error('[Experiences] RPC Error:', error)
-    throw new Error(`Failed to fetch experiences: ${error.message} (${error.code})`)
-  }
-
-  // Use type assertion as fallback if data is null (which RPC might return if no rows)
-  return (data as ExperienceSearchResult[] | null) ?? []
+  return results ?? []
 }
 
 export async function searchExperiences(params: {
@@ -68,113 +73,94 @@ export type ExperienceWithDetails = Experience & {
 }
 
 export async function getExperienceById(id: string): Promise<ExperienceWithDetails | null> {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('experiences')
-    .select(`
-      *,
-      provider_profiles (id, business_name, user_id),
-      destinations (name, slug),
-      categories (name, slug, icon),
-      subcategories (name, slug),
-      experience_images (id, url, alt_text, sort_order, is_cover)
-    `)
-    .eq('id', id)
-    .single()
-
-  return data as ExperienceWithDetails | null
+  const row = await prisma.experiences.findUnique({
+    where: { id },
+    include: {
+      provider_profiles: { select: { id: true, business_name: true, user_id: true } },
+      destinations: { select: { name: true, slug: true } },
+      categories: { select: { name: true, slug: true, icon: true } },
+      subcategories: { select: { name: true, slug: true } },
+      experience_images: {
+        select: { id: true, url: true, alt_text: true, sort_order: true, is_cover: true },
+        orderBy: { sort_order: 'asc' },
+      },
+    },
+  })
+  return row as unknown as ExperienceWithDetails | null
 }
 
 export async function getExperienceAvailability(experienceId: string, fromDate?: string) {
-  const supabase = await createClient()
   const today = fromDate || new Date().toISOString().split('T')[0]
-
-  const { data } = await supabase
-    .from('experience_availability')
-    .select('*')
-    .eq('experience_id', experienceId)
-    .eq('is_blocked', false)
-    .gte('date', today)
-    .order('date')
-
-  return (data as Array<{
-    id: string
-    experience_id: string
-    date: string
-    start_time: string
-    end_time: string | null
-    total_spots: number
-    booked_spots: number
-    price_override: number | null
-    is_blocked: boolean
-  }> | null) ?? []
+  const rows = await prisma.experience_availability.findMany({
+    where: {
+      experience_id: experienceId,
+      is_blocked: false,
+      date: { gte: new Date(today) },
+    },
+    orderBy: { date: 'asc' },
+  })
+  return rows.map((r) => ({
+    id: r.id,
+    experience_id: r.experience_id,
+    date: r.date.toISOString().split('T')[0],
+    start_time: r.start_time?.toISOString() ?? '',
+    end_time: r.end_time?.toISOString() ?? null,
+    total_spots: r.total_spots,
+    booked_spots: r.booked_spots,
+    price_override: r.price_override ? Number(r.price_override) : null,
+    is_blocked: r.is_blocked,
+  }))
 }
 
 export async function getExperiencesByProvider(providerId: string): Promise<Experience[]> {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('experiences')
-    .select('*')
-    .eq('provider_id', providerId)
-    .order('created_at', { ascending: false })
-
-  return (data as Experience[] | null) ?? []
+  const rows = await prisma.experiences.findMany({
+    where: { provider_id: providerId },
+    orderBy: { created_at: 'desc' },
+  })
+  return rows as unknown as Experience[]
 }
 
 export async function getExperiencesByDestination(
   destinationId: string,
   limit = 12
 ): Promise<ExperienceSearchResult[]> {
-  return rpcSearch({
-    dest_id: destinationId,
-    sort_by: 'rating',
-    page_size: limit,
-    page_offset: 0,
-  })
+  return rpcSearch({ dest_id: destinationId, sort_by: 'rating', page_size: limit, page_offset: 0 })
 }
 
 export async function getExperiencesByCategory(
   categoryId: string,
   limit = 12
 ): Promise<ExperienceSearchResult[]> {
-  return rpcSearch({
-    cat_id: categoryId,
-    sort_by: 'rating',
-    page_size: limit,
-    page_offset: 0,
-  })
+  return rpcSearch({ cat_id: categoryId, sort_by: 'rating', page_size: limit, page_offset: 0 })
 }
 
 export async function getDestinationRecommendations(
   destinationId: string
 ): Promise<ExperienceSearchResult[]> {
-  const supabase = await createClient()
+  const rows = await prisma.destination_recommendations.findMany({
+    where: { destination_id: destinationId },
+    include: {
+      experiences: {
+        select: {
+          id: true,
+          title: true,
+          short_description: true,
+          price_amount: true,
+          price_currency: true,
+          average_rating: true,
+          review_count: true,
+          category_id: true,
+          destination_id: true,
+          experience_images: { select: { url: true, is_cover: true } },
+        },
+      },
+    },
+    orderBy: { sort_order: 'asc' },
+  })
 
-  const { data, error } = await supabase
-    .from('destination_recommendations')
-    .select(`
-      sort_order,
-      experiences (
-        id,
-        title,
-        short_description,
-        price_amount,
-        price_currency,
-        average_rating,
-        review_count,
-        category_id,
-        destination_id,
-        experience_images (url, is_cover)
-      )
-    `)
-    .eq('destination_id', destinationId)
-    .order('sort_order')
-
-  if (error || !data) return []
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data as any[]).map((row) => {
+  return rows.map((row) => {
     const exp = row.experiences
+    if (!exp) return null
     return {
       id: exp.id,
       title: exp.title,
@@ -185,53 +171,48 @@ export async function getDestinationRecommendations(
       review_count: exp.review_count,
       category_id: exp.category_id,
       destination_id: exp.destination_id,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      cover_image_url: exp.experience_images?.find((img: any) => img.is_cover)?.url
-        ?? exp.experience_images?.[0]?.url
-        ?? null,
+      cover_image_url:
+        exp.experience_images.find((img) => img.is_cover)?.url ??
+        exp.experience_images[0]?.url ??
+        null,
     } as unknown as ExperienceSearchResult
-  })
+  }).filter(Boolean) as ExperienceSearchResult[]
 }
 
 export async function getFeaturedExperiencesByCategory(
   categoryId: string,
   limit = 10
 ): Promise<ExperienceSearchResult[]> {
-  const supabase = await createClient()
+  const rows = await prisma.experiences.findMany({
+    where: { category_id: categoryId, status: 'active', is_featured: true },
+    select: {
+      id: true,
+      title: true,
+      short_description: true,
+      price_amount: true,
+      price_currency: true,
+      average_rating: true,
+      review_count: true,
+      category_id: true,
+      destination_id: true,
+      experience_images: { select: { url: true, is_cover: true } },
+    },
+    take: limit,
+  })
 
-  // Directly query the table for featured items since rpcSearch might not support is_featured flag yet
-  const { data, error } = await supabase
-    .from('experiences')
-    .select(`
-      id,
-      title,
-      short_description,
-      price_amount,
-      price_currency,
-      average_rating,
-      review_count,
-      category_id,
-      destination_id,
-      experience_images(url, is_cover)
-    `)
-    .eq('category_id', categoryId)
-    .eq('status', 'active')
-    .eq('is_featured', true)
-    .limit(limit)
-
-  if (error || !data) return []
-
-  // Map to the expected type format
-  return (data as any[]).map(exp => ({
+  return rows.map((exp) => ({
     id: exp.id,
     title: exp.title,
-    short_description: exp.short_description || '',
+    short_description: exp.short_description ?? '',
     price_amount: Number(exp.price_amount) || 0,
     price_currency: exp.price_currency || 'MXN',
     average_rating: Number(exp.average_rating) || 0,
     review_count: exp.review_count || 0,
     category_id: exp.category_id,
     destination_id: exp.destination_id,
-    cover_image_url: exp.experience_images?.find((img: any) => img.is_cover)?.url || exp.experience_images?.[0]?.url || null
-  } as unknown)) as ExperienceSearchResult[]
+    cover_image_url:
+      exp.experience_images.find((img) => img.is_cover)?.url ??
+      exp.experience_images[0]?.url ??
+      null,
+  })) as unknown as ExperienceSearchResult[]
 }

@@ -26,7 +26,6 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Store } from 'lucide-react'
-import { createBrowserClient } from '@supabase/ssr'
 import type { Category } from '@/types'
 
 export default function ProviderRegistrationPage() {
@@ -47,18 +46,9 @@ function ProviderRegistrationForm() {
   const [charCount, setCharCount] = useState(0)
 
   useEffect(() => {
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-    supabase
-      .from('categories')
-      .select('*')
-      .eq('is_active', true)
-      .order('sort_order')
-      .then(({ data }) => {
-        if (data) setCategories(data as Category[])
-      })
+    fetch('/api/categories')
+      .then((res) => res.json())
+      .then(({ categories }) => setCategories(categories ?? []))
   }, [])
 
   return (

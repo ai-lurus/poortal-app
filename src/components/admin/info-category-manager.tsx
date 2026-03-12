@@ -218,7 +218,7 @@ export function InfoCategoryManager({
                 )
                 if (!result.success) {
                     setCategories(categories) // revert
-                    alert(result.error)
+                    alert('Ocurrió un error. Intenta de nuevo.')
                 }
             })
         }

@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import prisma from '@/lib/prisma'
 import type { Booking, BookingItem } from '@/types'
 
 export type BookingItemWithDetails = BookingItem & {
@@ -12,79 +12,72 @@ export async function getProviderBookingItems(
   providerId: string,
   status?: BookingItem['status'] | BookingItem['status'][]
 ): Promise<BookingItemWithDetails[]> {
-  const supabase = await createClient()
+  const rows = await prisma.booking_items.findMany({
+    where: {
+      provider_id: providerId,
+      ...(status !== undefined
+        ? { status: Array.isArray(status) ? { in: status } : status }
+        : {}),
+    } as any,
+    include: {
+      bookings: {
+        select: {
+          id: true,
+          booking_number: true,
+          status: true,
+          total_amount: true,
+          currency: true,
+          created_at: true,
+          notes: true,
+          profiles: {
+            select: { full_name: true, email: true, phone: true },
+          },
+        },
+      },
+      experiences: {
+        select: { id: true, title: true, slug: true },
+      },
+    },
+    orderBy: { created_at: 'desc' },
+  })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let query = (supabase as any)
-    .from('booking_items')
-    .select(`
-      *,
-      bookings:booking_id (
-        id, booking_number, status, total_amount, currency, created_at, notes,
-        profiles:user_id (full_name, email, phone)
-      ),
-      experiences:experience_id (id, title, slug)
-    `)
-    .eq('provider_id', providerId)
-    .order('created_at', { ascending: false })
-
-  if (status) {
-    if (Array.isArray(status)) {
-      query = query.in('status', status)
-    } else {
-      query = query.eq('status', status)
-    }
-  }
-
-  const { data } = await query
-
-  return (data as BookingItemWithDetails[] | null) ?? []
+  return rows as unknown as BookingItemWithDetails[]
 }
 
+const PLATFORM_FEE_RATE = 0.15
+
 export async function getProviderBookingStats(providerId: string) {
-  const supabase = await createClient()
-
   const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = supabase as any
-
-  const [total, monthly, pending, cancelled] = await Promise.all([
-    db
-      .from('booking_items')
-      .select('subtotal', { count: 'exact' })
-      .eq('provider_id', providerId)
-      .in('status', ['confirmed', 'completed']),
-
-    db
-      .from('booking_items')
-      .select('subtotal')
-      .eq('provider_id', providerId)
-      .in('status', ['confirmed', 'completed'])
-      .gte('created_at', startOfMonth),
-
-    db
-      .from('booking_items')
-      .select('*', { count: 'exact', head: true })
-      .eq('provider_id', providerId)
-      .eq('status', 'pending'),
-
-    db
-      .from('booking_items')
-      .select('*', { count: 'exact', head: true })
-      .eq('provider_id', providerId)
-      .eq('status', 'cancelled'),
+  const [totalItems, monthlyItems, pendingCount, cancelledCount] = await Promise.all([
+    prisma.booking_items.findMany({
+      where: { provider_id: providerId, status: { in: ['confirmed', 'completed'] } },
+      select: { subtotal: true },
+    }),
+    prisma.booking_items.findMany({
+      where: {
+        provider_id: providerId,
+        status: { in: ['confirmed', 'completed'] },
+        created_at: { gte: startOfMonth },
+      },
+      select: { subtotal: true },
+    }),
+    prisma.booking_items.count({
+      where: { provider_id: providerId, status: 'pending' },
+    }),
+    prisma.booking_items.count({
+      where: { provider_id: providerId, status: 'cancelled' },
+    }),
   ])
 
-  const totalRevenue = (total.data ?? []).reduce((sum: number, item: { subtotal: unknown }) => sum + Number(item.subtotal), 0)
-  const monthlyRevenue = (monthly.data ?? []).reduce((sum: number, item: { subtotal: unknown }) => sum + Number(item.subtotal), 0)
-  const PLATFORM_FEE_RATE = 0.15
+  const totalRevenue = totalItems.reduce((sum, item) => sum + Number(item.subtotal), 0)
+  const monthlyRevenue = monthlyItems.reduce((sum, item) => sum + Number(item.subtotal), 0)
 
   return {
-    totalBookings: total.count ?? 0,
-    pendingCount: pending.count ?? 0,
-    cancelledCount: cancelled.count ?? 0,
+    totalBookings: totalItems.length,
+    pendingCount,
+    cancelledCount,
     totalRevenue,
     monthlyRevenue,
     netRevenue: totalRevenue * (1 - PLATFORM_FEE_RATE),

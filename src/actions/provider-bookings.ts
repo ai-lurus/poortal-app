@@ -1,58 +1,59 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createClient } from '@/lib/supabase/server'
+import { auth } from '@/lib/auth'
+import { headers } from 'next/headers'
+import prisma from '@/lib/prisma'
 
 export type BookingActionResult = { success?: string; error?: string }
 
-async function getProviderIdForUser(userId: string): Promise<string | null> {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('provider_profiles')
-    .select('id')
-    .eq('user_id', userId)
-    .single()
-  return (data as { id: string } | null)?.id ?? null
+async function getProviderIdForUser(profileId: string): Promise<string | null> {
+  const provider = await prisma.provider_profiles.findFirst({
+    where: { user_id: profileId },
+    select: { id: true },
+  })
+  return provider?.id ?? null
 }
 
-async function verifyBookingItemOwnership(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  bookingItemId: string,
-  providerId: string
-): Promise<boolean> {
-  const { data } = await supabase
-    .from('booking_items')
-    .select('provider_id')
-    .eq('id', bookingItemId)
-    .single()
-  return (data as { provider_id: string } | null)?.provider_id === providerId
+async function verifyBookingItemOwnership(bookingItemId: string, providerId: string): Promise<boolean> {
+  const item = await prisma.booking_items.findFirst({
+    where: { id: bookingItemId },
+    select: { provider_id: true },
+  })
+  return item?.provider_id === providerId
+}
+
+async function getCurrentProviderId(): Promise<string | null> {
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session?.user) return null
+
+  const profile = await prisma.profiles.findFirst({
+    where: { user_id: session.user.id },
+    select: { id: true },
+  })
+  if (!profile) return null
+
+  return getProviderIdForUser(profile.id)
 }
 
 export async function confirmBookingItemAction(
   bookingItemId: string,
   message?: string
 ): Promise<BookingActionResult> {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autorizado.' }
+  const providerId = await getCurrentProviderId()
+  if (!providerId) return { error: 'No autorizado o no tienes perfil de proveedor.' }
 
-  const providerId = await getProviderIdForUser(user.id)
-  if (!providerId) return { error: 'No tienes perfil de proveedor.' }
-
-  const isOwner = await verifyBookingItemOwnership(supabase, bookingItemId, providerId)
+  const isOwner = await verifyBookingItemOwnership(bookingItemId, providerId)
   if (!isOwner) return { error: 'No tienes permiso para esta reserva.' }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
-    .from('booking_items')
-    .update({
+  await prisma.booking_items.update({
+    where: { id: bookingItemId },
+    data: {
       status: 'confirmed',
       provider_message: message ?? null,
-      responded_at: new Date().toISOString(),
-    })
-    .eq('id', bookingItemId)
-
-  if (error) return { error: 'Error al confirmar la reserva.' }
+      responded_at: new Date(),
+    },
+  })
 
   revalidatePath('/provider/bookings')
   return { success: 'Reserva confirmada.' }
@@ -64,27 +65,20 @@ export async function rejectBookingItemAction(
 ): Promise<BookingActionResult> {
   if (!message.trim()) return { error: 'Debes proporcionar un motivo de rechazo.' }
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autorizado.' }
+  const providerId = await getCurrentProviderId()
+  if (!providerId) return { error: 'No autorizado o no tienes perfil de proveedor.' }
 
-  const providerId = await getProviderIdForUser(user.id)
-  if (!providerId) return { error: 'No tienes perfil de proveedor.' }
-
-  const isOwner = await verifyBookingItemOwnership(supabase, bookingItemId, providerId)
+  const isOwner = await verifyBookingItemOwnership(bookingItemId, providerId)
   if (!isOwner) return { error: 'No tienes permiso para esta reserva.' }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
-    .from('booking_items')
-    .update({
+  await prisma.booking_items.update({
+    where: { id: bookingItemId },
+    data: {
       status: 'rejected',
       provider_message: message,
-      responded_at: new Date().toISOString(),
-    })
-    .eq('id', bookingItemId)
-
-  if (error) return { error: 'Error al rechazar la reserva.' }
+      responded_at: new Date(),
+    },
+  })
 
   revalidatePath('/provider/bookings')
   return { success: 'Reserva rechazada.' }
@@ -96,27 +90,20 @@ export async function cancelBookingItemAction(
 ): Promise<BookingActionResult> {
   if (!reason.trim()) return { error: 'Debes proporcionar un motivo de cancelacion.' }
 
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: 'No autorizado.' }
+  const providerId = await getCurrentProviderId()
+  if (!providerId) return { error: 'No autorizado o no tienes perfil de proveedor.' }
 
-  const providerId = await getProviderIdForUser(user.id)
-  if (!providerId) return { error: 'No tienes perfil de proveedor.' }
-
-  const isOwner = await verifyBookingItemOwnership(supabase, bookingItemId, providerId)
+  const isOwner = await verifyBookingItemOwnership(bookingItemId, providerId)
   if (!isOwner) return { error: 'No tienes permiso para esta reserva.' }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase as any)
-    .from('booking_items')
-    .update({
+  await prisma.booking_items.update({
+    where: { id: bookingItemId },
+    data: {
       status: 'cancelled',
       provider_message: reason,
-      responded_at: new Date().toISOString(),
-    })
-    .eq('id', bookingItemId)
-
-  if (error) return { error: 'Error al cancelar la reserva.' }
+      responded_at: new Date(),
+    },
+  })
 
   revalidatePath('/provider/bookings')
   revalidatePath('/provider/cancellations')

@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
-import { getProviderByUserId } from '@/queries/providers'
+import { headers } from 'next/headers'
+import { auth } from '@/lib/auth'
+import { getProviderByAuthUserId } from '@/queries/providers'
 import { getExperiencesByProvider } from '@/queries/experiences'
 import {
   Card,
@@ -36,11 +37,10 @@ const statusLabels: Record<string, { label: string; variant: 'default' | 'second
 }
 
 export default async function ProviderDashboardPage() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session?.user) redirect('/login')
 
-  const provider = await getProviderByUserId(user.id)
+  const provider = await getProviderByAuthUserId(session.user.id)
   if (!provider) redirect('/register/provider')
 
   const experiences = await getExperiencesByProvider(provider.id)

@@ -42,7 +42,6 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area'
 
 import { InfoItemForm } from './forms/info-item-form'
-import { createClient } from '@/lib/supabase/client'
 import type { DestinationInfoCategory, DestinationInfoItem } from '@/queries/destination_info'
 // import server actions
 import {
@@ -196,22 +195,19 @@ export function InfoCategoryDetails({ category, destinationId }: Props) {
         setIsLoading(true)
 
         async function fetchItems() {
-            const supabase = createClient()
-            const { data, error } = await (supabase as any)
-                .from('destination_info_items')
-                .select('*')
-                .eq('category_id', category.id)
-                .order('sort_order', { ascending: true })
-
-            if (!mounted) return
-            if (error) {
-                console.error('Error fetching info items:', error)
-                setIsLoading(false)
-                return
+            try {
+                const res = await fetch(`/api/admin/destination-info-items?categoryId=${category.id}`)
+                if (!mounted) return
+                if (!res.ok) throw new Error('Failed to fetch items')
+                const { items: data } = await res.json() as { items: DestinationInfoItem[] }
+                itemsCacheRef.current[category.id] = data
+                setItems(data)
+            } catch (err) {
+                if (!mounted) return
+                console.error('Error fetching info items:', err)
+            } finally {
+                if (mounted) setIsLoading(false)
             }
-            itemsCacheRef.current[category.id] = (data ?? []) as DestinationInfoItem[]
-            setItems((data ?? []) as DestinationInfoItem[])
-            setIsLoading(false)
         }
 
         fetchItems()
@@ -219,18 +215,15 @@ export function InfoCategoryDetails({ category, destinationId }: Props) {
     }, [category.id])
 
     async function refreshItems(categoryId: string) {
-        const supabase = createClient()
-        const { data, error } = await (supabase as any)
-            .from('destination_info_items')
-            .select('*')
-            .eq('category_id', categoryId)
-            .order('sort_order', { ascending: true })
-        if (error) {
-            console.error('Error refreshing info items:', error)
-            return
+        try {
+            const res = await fetch(`/api/admin/destination-info-items?categoryId=${categoryId}`)
+            if (!res.ok) throw new Error('Failed to refresh items')
+            const { items: data } = await res.json() as { items: DestinationInfoItem[] }
+            itemsCacheRef.current[categoryId] = data
+            setItems(data)
+        } catch (err) {
+            console.error('Error refreshing info items:', err)
         }
-        itemsCacheRef.current[categoryId] = (data ?? []) as DestinationInfoItem[]
-        setItems((data ?? []) as DestinationInfoItem[])
     }
 
     const sensors = useSensors(
@@ -257,7 +250,7 @@ export function InfoCategoryDetails({ category, destinationId }: Props) {
                 )
                 if (!result.success) {
                     setItems(items) // revert
-                    alert(result.error)
+                    alert('Error al reordenar elementos')
                 } else {
                     itemsCacheRef.current[category.id] = newArray
                 }
@@ -272,7 +265,7 @@ export function InfoCategoryDetails({ category, destinationId }: Props) {
                 setIsCreateOpen(false)
                 await refreshItems(category.id)
             } else {
-                alert(result.error)
+                alert('Ocurrió un error. Intenta de nuevo.')
             }
         })
     }
@@ -285,7 +278,7 @@ export function InfoCategoryDetails({ category, destinationId }: Props) {
                 setEditingItem(null)
                 await refreshItems(category.id)
             } else {
-                alert(result.error)
+                alert('Ocurrió un error. Intenta de nuevo.')
             }
         })
     }
@@ -298,7 +291,7 @@ export function InfoCategoryDetails({ category, destinationId }: Props) {
                 setItemToDelete(null)
                 await refreshItems(category.id)
             } else {
-                alert(result.error)
+                alert('Ocurrió un error. Intenta de nuevo.')
             }
         })
     }

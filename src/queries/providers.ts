@@ -1,26 +1,29 @@
-import { createClient } from '@/lib/supabase/server'
+import prisma from '@/lib/prisma'
 import type { ProviderProfile } from '@/types'
 
 export async function getProviderByUserId(userId: string): Promise<ProviderProfile | null> {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('provider_profiles')
-    .select('*')
-    .eq('user_id', userId)
-    .single()
+  // userId here is the profiles.id (UUID), not the Better Auth user.id
+  const row = await prisma.provider_profiles.findFirst({
+    where: { user_id: userId },
+  })
+  return row as unknown as ProviderProfile | null
+}
 
-  return data as ProviderProfile | null
+// Accepts the Better Auth user.id (TEXT), resolves profile then provider
+export async function getProviderByAuthUserId(authUserId: string): Promise<ProviderProfile | null> {
+  const profile = await prisma.profiles.findFirst({
+    where: { user_id: authUserId },
+    select: { id: true },
+  })
+  if (!profile) return null
+  return getProviderByUserId(profile.id)
 }
 
 export async function getProviderById(id: string): Promise<ProviderProfile | null> {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('provider_profiles')
-    .select('*')
-    .eq('id', id)
-    .single()
-
-  return data as ProviderProfile | null
+  const row = await prisma.provider_profiles.findUnique({
+    where: { id },
+  })
+  return row as unknown as ProviderProfile | null
 }
 
 export type ProviderWithProfile = ProviderProfile & {
@@ -31,40 +34,46 @@ export type ProviderWithProfile = ProviderProfile & {
 export async function getProvidersByStatus(
   status: ProviderProfile['status']
 ): Promise<ProviderWithProfile[]> {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('provider_profiles')
-    .select(`
-      *,
-      profiles:user_id (full_name, email, avatar_url),
-      categories:category_id (name, slug)
-    `)
-    .eq('status', status)
-    .order('created_at', { ascending: false })
-
-  return (data as ProviderWithProfile[] | null) ?? []
+  const rows = await prisma.provider_profiles.findMany({
+    where: { status: status as any },
+    include: {
+      profiles_provider_profiles_user_idToprofiles: {
+        select: { full_name: true, email: true, avatar_url: true },
+      },
+      categories: {
+        select: { name: true, slug: true },
+      },
+    },
+    orderBy: { created_at: 'desc' },
+  })
+  return rows.map((r) => ({
+    ...r,
+    profiles: r.profiles_provider_profiles_user_idToprofiles,
+    categories: r.categories,
+  })) as unknown as ProviderWithProfile[]
 }
 
 export async function getAllProviders(): Promise<ProviderWithProfile[]> {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('provider_profiles')
-    .select(`
-      *,
-      profiles:user_id (full_name, email, avatar_url),
-      categories:category_id (name, slug)
-    `)
-    .order('created_at', { ascending: false })
-
-  return (data as ProviderWithProfile[] | null) ?? []
+  const rows = await prisma.provider_profiles.findMany({
+    include: {
+      profiles_provider_profiles_user_idToprofiles: {
+        select: { full_name: true, email: true, avatar_url: true },
+      },
+      categories: {
+        select: { name: true, slug: true },
+      },
+    },
+    orderBy: { created_at: 'desc' },
+  })
+  return rows.map((r) => ({
+    ...r,
+    profiles: r.profiles_provider_profiles_user_idToprofiles,
+    categories: r.categories,
+  })) as unknown as ProviderWithProfile[]
 }
 
 export async function getProviderExperienceCount(providerId: string): Promise<number> {
-  const supabase = await createClient()
-  const { count } = await supabase
-    .from('experiences')
-    .select('*', { count: 'exact', head: true })
-    .eq('provider_id', providerId)
-
-  return count ?? 0
+  return prisma.experiences.count({
+    where: { provider_id: providerId },
+  })
 }
