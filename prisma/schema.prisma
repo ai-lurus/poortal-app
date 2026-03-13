@@ -120,7 +120,8 @@ model cancellations {
   id                   String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   booking_id           String              @db.Uuid
   booking_item_id      String?             @db.Uuid
-  cancelled_by         String              @db.Uuid
+  cancelled_by         String?             @db.Uuid
+  cancelled_by_type    String              @default("system")
   reason               String?
   cancellation_policy  cancellation_policy
   hours_before_service Decimal?            @db.Decimal(10, 2)
@@ -131,7 +132,7 @@ model cancellations {
   created_at           DateTime            @default(now()) @db.Timestamptz(6)
   bookings             bookings            @relation(fields: [booking_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   booking_items        booking_items?      @relation(fields: [booking_item_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  profiles             profiles            @relation(fields: [cancelled_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  profiles             profiles?           @relation(fields: [cancelled_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([booking_id], map: "idx_cancellations_booking")
 }

@@ -42,6 +42,9 @@ export const ROUTES = {
   providerAnalytics: '/provider/analytics',
   providerPayments: '/provider/payments',
   providerOnboarding: '/provider/onboarding',
+  providerValidator: '/provider/validator',
+  providerProfile: '/provider/profile',
+  providerNotifications: '/provider/notifications',
   // Admin
   adminDashboard: '/admin/dashboard',
   adminProviders: '/admin/providers',

@@ -23,7 +23,7 @@ async function verifyBookingItemOwnership(bookingItemId: string, providerId: str
   return item?.provider_id === providerId
 }
 
-async function getCurrentProviderId(): Promise<string | null> {
+async function getCurrentProviderContext(): Promise<{ providerId: string; profileId: string } | null> {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session?.user) return null
 
@@ -33,7 +33,15 @@ async function getCurrentProviderId(): Promise<string | null> {
   })
   if (!profile) return null
 
-  return getProviderIdForUser(profile.id)
+  const providerId = await getProviderIdForUser(profile.id)
+  if (!providerId) return null
+
+  return { providerId, profileId: profile.id }
+}
+
+async function getCurrentProviderId(): Promise<string | null> {
+  const ctx = await getCurrentProviderContext()
+  return ctx?.providerId ?? null
 }
 
 export async function confirmBookingItemAction(
@@ -71,14 +79,16 @@ export async function rejectBookingItemAction(
   const isOwner = await verifyBookingItemOwnership(bookingItemId, providerId)
   if (!isOwner) return { error: 'No tienes permiso para esta reserva.' }
 
-  await prisma.booking_items.update({
-    where: { id: bookingItemId },
-    data: {
-      status: 'rejected',
-      provider_message: message,
-      responded_at: new Date(),
-    },
-  })
+  await prisma.$transaction([
+    prisma.booking_items.update({
+      where: { id: bookingItemId },
+      data: { status: 'rejected', provider_message: message, responded_at: new Date() },
+    }),
+    prisma.tickets.updateMany({
+      where: { booking_item_id: bookingItemId },
+      data: { status: 'cancelled' },
+    }),
+  ])
 
   revalidatePath('/provider/bookings')
   return { success: 'Reserva rechazada.' }
@@ -90,20 +100,47 @@ export async function cancelBookingItemAction(
 ): Promise<BookingActionResult> {
   if (!reason.trim()) return { error: 'Debes proporcionar un motivo de cancelacion.' }
 
-  const providerId = await getCurrentProviderId()
-  if (!providerId) return { error: 'No autorizado o no tienes perfil de proveedor.' }
+  const ctx = await getCurrentProviderContext()
+  if (!ctx) return { error: 'No autorizado o no tienes perfil de proveedor.' }
+
+  const { providerId, profileId } = ctx
 
   const isOwner = await verifyBookingItemOwnership(bookingItemId, providerId)
   if (!isOwner) return { error: 'No tienes permiso para esta reserva.' }
 
-  await prisma.booking_items.update({
+  const item = await prisma.booking_items.findUnique({
     where: { id: bookingItemId },
-    data: {
-      status: 'cancelled',
-      provider_message: reason,
-      responded_at: new Date(),
+    select: {
+      booking_id: true,
+      subtotal: true,
+      experiences: { select: { cancellation_policy: true } },
     },
   })
+  if (!item) return { error: 'Reserva no encontrada.' }
+
+  await prisma.$transaction([
+    prisma.booking_items.update({
+      where: { id: bookingItemId },
+      data: { status: 'cancelled', provider_message: reason, responded_at: new Date() },
+    }),
+    prisma.tickets.updateMany({
+      where: { booking_item_id: bookingItemId },
+      data: { status: 'cancelled' },
+    }),
+    prisma.cancellations.create({
+      data: {
+        booking_id: item.booking_id,
+        booking_item_id: bookingItemId,
+        cancelled_by: profileId,
+        cancelled_by_type: 'provider',
+        reason,
+        cancellation_policy: item.experiences.cancellation_policy ?? 'flexible',
+        original_amount: item.subtotal,
+        refund_percentage: 100,
+        refund_amount: item.subtotal,
+      },
+    }),
+  ])
 
   revalidatePath('/provider/bookings')
   revalidatePath('/provider/cancellations')

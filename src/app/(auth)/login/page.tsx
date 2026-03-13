@@ -36,7 +36,15 @@ function LoginForm() {
     const email = (form.elements.namedItem('email') as HTMLInputElement).value
     const password = (form.elements.namedItem('password') as HTMLInputElement).value
 
-    const { error: authErr } = await authClient.signIn.email({ email, password })
+    let authErr: unknown = null
+    try {
+      const result = await authClient.signIn.email({ email, password })
+      authErr = result.error
+    } catch {
+      setError('No se pudo conectar al servidor. Intenta de nuevo.')
+      setIsPending(false)
+      return
+    }
 
     if (authErr) {
       setError('Credenciales invalidas. Verifica tu correo y contrasena.')
@@ -80,7 +88,7 @@ function LoginForm() {
             </span>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" suppressHydrationWarning>
             <div className="space-y-2">
               <Label htmlFor="email">Correo electronico</Label>
               <Input
@@ -90,6 +98,7 @@ function LoginForm() {
                 placeholder="tu@email.com"
                 required
                 autoComplete="email"
+                suppressHydrationWarning
               />
             </div>
 
@@ -102,6 +111,7 @@ function LoginForm() {
                 placeholder="Tu contrasena"
                 required
                 autoComplete="current-password"
+                suppressHydrationWarning
               />
             </div>
 

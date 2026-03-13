@@ -162,7 +162,7 @@ export function AvailabilityManager({ experienceId, availability }: Availability
                   </Badge>
                   {slot.price_override && (
                     <Badge variant="outline">
-                      ${Number(slot.price_override).toLocaleString()}
+                      ${Number(slot.price_override).toLocaleString('es-MX')}
                     </Badge>
                   )}
                 </div>
@@ -224,6 +224,7 @@ export function AvailabilityManager({ experienceId, availability }: Availability
                   type="date"
                   required
                   min={new Date().toISOString().split('T')[0]}
+                  suppressHydrationWarning
                 />
               </div>
               <div className="space-y-2">
@@ -297,6 +298,7 @@ export function AvailabilityManager({ experienceId, availability }: Availability
                   type="date"
                   required
                   min={new Date().toISOString().split('T')[0]}
+                  suppressHydrationWarning
                 />
               </div>
               <div className="space-y-2">
@@ -307,6 +309,7 @@ export function AvailabilityManager({ experienceId, availability }: Availability
                   type="date"
                   required
                   min={new Date().toISOString().split('T')[0]}
+                  suppressHydrationWarning
                 />
               </div>
             </div>

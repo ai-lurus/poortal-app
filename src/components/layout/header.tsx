@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { useDestinationStore } from '@/stores/destination-store'
 import { signOutAction } from '@/actions/auth'
@@ -33,7 +34,10 @@ import { useCartStore } from '@/stores/cart-store'
 
 export function Header() {
   const { user, profile, loading } = useAuth()
-  const itemCount = useCartStore((s) => s.items.length)
+  const rawItemCount = useCartStore((s) => s.items.length)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  const itemCount = mounted ? rawItemCount : 0
   const pathname = usePathname()
   const activeSlug = useDestinationStore((s) => s.activeSlug)
   const slugMatch = pathname.match(/^\/destinations\/([^\/]+)/)

@@ -160,10 +160,10 @@ export default async function AdminDisputesPage() {
                     </div>
                     <div>
                       <p className="truncate">
-                        {c.profiles.full_name ?? '—'}
+                        {c.profiles?.full_name ?? '—'}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">
-                        {c.profiles.email}
+                        {c.profiles?.email ?? c.cancelled_by_type}
                       </p>
                     </div>
                     <div className="truncate text-muted-foreground">

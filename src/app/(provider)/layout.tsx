@@ -11,7 +11,7 @@ export default function ProviderLayout({
       <Header />
       <div className="flex flex-1">
         <ProviderSidebar />
-        <main className="flex-1 p-6 lg:p-8">
+        <main className="flex-1 p-6 pb-24 lg:p-8 lg:pb-8">
           {children}
         </main>
       </div>

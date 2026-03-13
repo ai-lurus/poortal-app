@@ -77,7 +77,7 @@ function ExperienceCard({ experience }: { experience: ExperienceSnippet }) {
           )}
         </div>
         <p className="text-xs font-semibold">
-          {experience.price_currency} {experience.price_amount.toLocaleString()}
+          {experience.price_currency} {experience.price_amount.toLocaleString('es-MX')}
         </p>
       </div>
     </Link>

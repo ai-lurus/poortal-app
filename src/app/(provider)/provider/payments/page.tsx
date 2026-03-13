@@ -3,9 +3,11 @@ import { headers } from 'next/headers'
 import { auth } from '@/lib/auth'
 import { getProviderByAuthUserId } from '@/queries/providers'
 import { getProviderBookingItems, getProviderBookingStats } from '@/queries/bookings'
+import { getMonthlyBookingStats } from '@/queries/analytics'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { CreditCard, TrendingUp, Wallet, Calendar } from 'lucide-react'
+import { PaymentsRevenueChart } from '@/components/provider/payments-chart'
 
 export const metadata = { title: 'Mis Pagos' }
 
@@ -26,9 +28,10 @@ export default async function ProviderPaymentsPage() {
   const provider = await getProviderByAuthUserId(session.user.id)
   if (!provider) redirect('/register/provider')
 
-  const [stats, completedItems] = await Promise.all([
+  const [stats, completedItems, monthlyStats] = await Promise.all([
     getProviderBookingStats(provider.id),
     getProviderBookingItems(provider.id, 'completed'),
+    getMonthlyBookingStats(provider.id, 6),
   ])
 
   return (
@@ -107,6 +110,16 @@ export default async function ProviderPaymentsPage() {
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">Ingresos netos — últimos 6 meses</CardTitle>
+          <p className="text-xs text-muted-foreground">Después de comisión del 15%</p>
+        </CardHeader>
+        <CardContent>
+          <PaymentsRevenueChart data={monthlyStats} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

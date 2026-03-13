@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
-import { headers } from 'next/headers'
+import { headers, cookies } from 'next/headers'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { ROUTES } from '@/lib/constants'
@@ -22,6 +22,17 @@ function formatTime(time: Date) {
   return `${h12}:${m.toString().padStart(2, '0')} ${ampm}`
 }
 
+const TICKET_SELECT = {
+  id: true,
+  qr_code: true,
+  status: true,
+  service_date: true,
+  service_time: true,
+  quantity: true,
+  experiences: { select: { title: true, short_description: true } },
+  provider_profiles: { select: { business_name: true } },
+} as const
+
 export const metadata = { title: 'Ticket QR' }
 
 export default async function TicketDetailPage({
@@ -31,27 +42,43 @@ export default async function TicketDetailPage({
 }) {
   const { bookingId } = await params
   const session = await auth.api.getSession({ headers: await headers() })
-  if (!session?.user) notFound()
 
-  const profile = await prisma.profiles.findFirst({
-    where: { user_id: session.user.id },
-    select: { id: true },
-  })
-  if (!profile) notFound()
+  let ticket: Awaited<ReturnType<typeof prisma.tickets.findFirst<{ select: typeof TICKET_SELECT }>>> = null
 
-  const ticket = await prisma.tickets.findFirst({
-    where: { id: bookingId, user_id: profile.id },
-    select: {
-      id: true,
-      qr_code: true,
-      status: true,
-      service_date: true,
-      service_time: true,
-      quantity: true,
-      experiences: { select: { title: true, short_description: true } },
-      provider_profiles: { select: { business_name: true } },
-    },
-  })
+  if (session?.user) {
+    const profile = await prisma.profiles.findFirst({
+      where: { user_id: session.user.id },
+      select: { id: true },
+    })
+    if (profile) {
+      ticket = await prisma.tickets.findFirst({
+        where: { id: bookingId, user_id: profile.id },
+        select: TICKET_SELECT,
+      })
+    }
+  } else {
+    // Guest: look up ticket via guest_tokens cookie
+    const cookieStore = await cookies()
+    const raw = cookieStore.get('guest_tokens')?.value
+    const guestTokens: string[] = raw ? JSON.parse(raw) : []
+
+    if (guestTokens.length > 0) {
+      const booking = await prisma.bookings.findFirst({
+        where: {
+          guest_token: { in: guestTokens },
+          booking_items: { some: { tickets: { id: bookingId } } },
+        },
+        select: {
+          booking_items: {
+            where: { tickets: { id: bookingId } },
+            select: { tickets: { select: TICKET_SELECT } },
+          },
+        },
+      })
+      ticket = booking?.booking_items[0]?.tickets ?? null
+    }
+  }
+
   if (!ticket) notFound()
 
   return (
