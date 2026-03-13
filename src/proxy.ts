@@ -16,7 +16,7 @@ async function getSessionUser(request: NextRequest): Promise<SessionUser> {
   }
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Get session via HTTP (avoids importing Prisma which is incompatible with Edge Runtime)
