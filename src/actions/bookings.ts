@@ -98,7 +98,7 @@ export async function createBookingFromCart({ items, guestEmail, guestName }: Cr
         unit_price: item.unitPrice,
         subtotal: lineTotal,
         service_date: new Date(item.serviceDate),
-        service_time: item.serviceTime,
+        service_time: item.serviceTime ? new Date(`1970-01-01T${item.serviceTime}Z`) : null,
       },
       select: { id: true },
     })
@@ -112,7 +112,7 @@ export async function createBookingFromCart({ items, guestEmail, guestName }: Cr
         qr_code: crypto.randomUUID(),
         status: 'active',
         service_date: new Date(item.serviceDate),
-        service_time: item.serviceTime,
+        service_time: item.serviceTime ? new Date(`1970-01-01T${item.serviceTime}Z`) : null,
         quantity: item.quantity,
       },
     })
