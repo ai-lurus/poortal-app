@@ -60,7 +60,12 @@ export default function CartPage() {
     setLoading(false)
 
     if ('error' in result) {
-      setErrorMsg('Hubo un error al procesar tu reserva. Intenta de nuevo.')
+      if (result.error === 'invalid_experiences') {
+        clearCart()
+        setErrorMsg('Algunas experiencias ya no están disponibles. Tu carrito fue vaciado.')
+      } else {
+        setErrorMsg('Hubo un error al procesar tu reserva. Intenta de nuevo.')
+      }
       return
     }
 

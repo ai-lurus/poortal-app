@@ -22,8 +22,25 @@ interface CreateBookingInput {
   guestName?: string
 }
 
+function parseServiceTime(serviceTime: string | null): Date | null {
+  if (!serviceTime) return null
+  // Already a full ISO string (e.g. "1970-01-01T15:00:00.000Z")
+  if (serviceTime.includes('T')) return new Date(serviceTime)
+  // Bare time string (e.g. "09:00:00")
+  return new Date(`1970-01-01T${serviceTime}Z`)
+}
+
 export async function createBookingFromCart({ items, guestEmail, guestName }: CreateBookingInput) {
   if (items.length === 0) return { error: 'empty_cart' as const }
+
+  const experienceIds = items.map((i) => i.experienceId)
+  const existingExperiences = await prisma.experiences.findMany({
+    where: { id: { in: experienceIds } },
+    select: { id: true },
+  })
+  const foundIds = new Set(existingExperiences.map((e) => e.id))
+  const missing = experienceIds.filter((id) => !foundIds.has(id))
+  if (missing.length > 0) return { error: 'invalid_experiences' as const }
 
   const session = await auth.api.getSession({ headers: await headers() })
 
@@ -98,7 +115,7 @@ export async function createBookingFromCart({ items, guestEmail, guestName }: Cr
         unit_price: item.unitPrice,
         subtotal: lineTotal,
         service_date: new Date(item.serviceDate),
-        service_time: item.serviceTime ? new Date(`1970-01-01T${item.serviceTime}Z`) : null,
+        service_time: parseServiceTime(item.serviceTime),
       },
       select: { id: true },
     })
@@ -112,7 +129,7 @@ export async function createBookingFromCart({ items, guestEmail, guestName }: Cr
         qr_code: crypto.randomUUID(),
         status: 'active',
         service_date: new Date(item.serviceDate),
-        service_time: item.serviceTime ? new Date(`1970-01-01T${item.serviceTime}Z`) : null,
+        service_time: parseServiceTime(item.serviceTime),
         quantity: item.quantity,
       },
     })
