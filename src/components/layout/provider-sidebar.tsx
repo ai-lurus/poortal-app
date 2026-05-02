@@ -16,9 +16,11 @@ import {
   Bell,
   Settings,
   MoreHorizontal,
+  LogOut,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import { signOutAction } from '@/actions/auth'
 
 const providerNavItems = [
   { href: ROUTES.providerDashboard, label: 'Dashboard', icon: LayoutDashboard },
@@ -124,6 +126,17 @@ export function ProviderSidebar() {
                 </Link>
               )
             })}
+          </div>
+          <div className="border-t px-4 pb-4">
+            <form action={signOutAction} className="w-full">
+              <button
+                type="submit"
+                className="flex w-full items-center gap-2 rounded-xl p-3 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+              >
+                <LogOut className="h-5 w-5" />
+                Cerrar Sesión
+              </button>
+            </form>
           </div>
         </SheetContent>
       </Sheet>

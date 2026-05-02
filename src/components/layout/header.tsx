@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { useDestinationStore } from '@/stores/destination-store'
-import { signOutAction } from '@/actions/auth'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -15,22 +14,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
 import {
-  Search,
   ShoppingCart,
-  Menu,
   User,
   Ticket,
   CalendarCheck,
-  LogOut,
-  LayoutDashboard,
   Store,
   Shield,
+  LogOut,
 } from 'lucide-react'
 import { ROUTES } from '@/lib/constants'
 import { useCartStore } from '@/stores/cart-store'
+import { signOutAction } from '@/actions/auth'
 
 export function Header() {
   const { user, profile, loading } = useAuth()
@@ -53,12 +49,6 @@ export function Header() {
 
         {/* Desktop Nav */}
         <nav className="hidden items-center space-x-6 md:flex">
-          <Link
-            href={ROUTES.explore}
-            className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Explorar
-          </Link>
           <Link
             href={ROUTES.destination('cancun')}
             className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -91,85 +81,96 @@ export function Header() {
           {loading ? (
             <div className="h-8 w-8 animate-pulse rounded-full bg-muted" />
           ) : user && profile ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={profile.avatar_url || undefined} alt={profile.full_name || ''} />
-                    <AvatarFallback>
-                      {profile.full_name?.charAt(0)?.toUpperCase() || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end">
-                <div className="flex items-center justify-start gap-2 p-2">
-                  <div className="flex flex-col space-y-1 leading-none">
-                    <p className="font-medium">{profile.full_name}</p>
-                    <p className="text-xs text-muted-foreground">{profile.email}</p>
+            <>
+              {/* Mobile: avatar links directly to profile */}
+              <Link
+                href={profile.role === 'provider' ? ROUTES.providerProfile : ROUTES.profile}
+                className="md:hidden"
+              >
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={profile.avatar_url || undefined} alt={profile.full_name || ''} />
+                  <AvatarFallback>
+                    {profile.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
+
+              {/* Desktop: full dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative hidden md:flex h-8 w-8 rounded-full">
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={profile.avatar_url || undefined} alt={profile.full_name || ''} />
+                      <AvatarFallback>
+                        {profile.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end">
+                  <div className="flex items-center justify-start gap-2 p-2">
+                    <div className="flex flex-col space-y-1 leading-none">
+                      <p className="font-medium">{profile.full_name}</p>
+                      <p className="text-xs text-muted-foreground">{profile.email}</p>
+                    </div>
                   </div>
-                </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href={ROUTES.profile}>
-                    <User className="mr-2 h-4 w-4" />
-                    Mi Perfil
-                  </Link>
-                </DropdownMenuItem>
-                {profile.role === 'tourist' && (
-                  <>
-                    <DropdownMenuItem asChild>
-                      <Link href={ROUTES.wallet}>
-                        <Ticket className="mr-2 h-4 w-4" />
-                        Mi Wallet
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href={ROUTES.bookings}>
-                        <CalendarCheck className="mr-2 h-4 w-4" />
-                        Mis Reservas
-                      </Link>
-                    </DropdownMenuItem>
-                  </>
-                )}
-
-                {/* Provider links */}
-                {profile.role === 'provider' && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href={ROUTES.providerDashboard}>
-                        <Store className="mr-2 h-4 w-4" />
-                        Panel Proveedor
-                      </Link>
-                    </DropdownMenuItem>
-                  </>
-                )}
-
-                {/* Admin links */}
-                {profile.role === 'admin' && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href={ROUTES.adminDashboard}>
-                        <Shield className="mr-2 h-4 w-4" />
-                        Panel Admin
-                      </Link>
-                    </DropdownMenuItem>
-                  </>
-                )}
-
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <form action={signOutAction}>
-                    <button type="submit" className="flex w-full items-center">
-                      <LogOut className="mr-2 h-4 w-4" />
-                      Cerrar Sesion
-                    </button>
-                  </form>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href={profile.role === 'provider' ? ROUTES.providerProfile : ROUTES.profile}>
+                      <User className="mr-2 h-4 w-4" />
+                      Mi Perfil
+                    </Link>
+                  </DropdownMenuItem>
+                  {profile.role === 'tourist' && (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link href={ROUTES.wallet}>
+                          <Ticket className="mr-2 h-4 w-4" />
+                          Mi Wallet
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href={ROUTES.bookings}>
+                          <CalendarCheck className="mr-2 h-4 w-4" />
+                          Mis Reservas
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {profile.role === 'provider' && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href={ROUTES.providerDashboard}>
+                          <Store className="mr-2 h-4 w-4" />
+                          Panel Proveedor
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  {profile.role === 'admin' && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href={ROUTES.adminDashboard}>
+                          <Shield className="mr-2 h-4 w-4" />
+                          Panel Admin
+                        </Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <form action={signOutAction} className="w-full">
+                      <button type="submit" className="flex w-full items-center text-destructive">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        Cerrar Sesión
+                      </button>
+                    </form>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           ) : (
             <div className="hidden items-center space-x-2 md:flex">
               <Button variant="ghost" size="sm" asChild>
@@ -181,56 +182,6 @@ export function Header() {
             </div>
           )}
 
-          {/* Mobile menu */}
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-72">
-              <nav className="flex flex-col space-y-4 mt-8">
-                <Link href={ROUTES.explore} className="text-lg font-medium">
-                  Explorar
-                </Link>
-                <Link href={ROUTES.destination('cancun')} className="text-lg font-medium">
-                  Cancun
-                </Link>
-                <Link href={infoHref} className="text-lg font-medium">
-                  Info
-                </Link>
-                {user && profile && (
-                  <>
-                    <hr />
-                    {profile.role === 'tourist' && (
-                      <>
-                        <Link href={ROUTES.wallet} className="text-lg font-medium">
-                          Mi Wallet
-                        </Link>
-                        <Link href={ROUTES.bookings} className="text-lg font-medium">
-                          Mis Reservas
-                        </Link>
-                      </>
-                    )}
-                    <Link href={ROUTES.profile} className="text-lg font-medium">
-                      Mi Perfil
-                    </Link>
-                  </>
-                )}
-                {!user && !loading && (
-                  <>
-                    <hr />
-                    <Link href={ROUTES.login} className="text-lg font-medium">
-                      Iniciar Sesion
-                    </Link>
-                    <Link href={ROUTES.register} className="text-lg font-medium">
-                      Registrarse
-                    </Link>
-                  </>
-                )}
-              </nav>
-            </SheetContent>
-          </Sheet>
         </div>
       </div>
     </header>

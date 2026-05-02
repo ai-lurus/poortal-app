@@ -13,34 +13,12 @@ export function Footer() {
             </p>
           </div>
 
-          {/* Explorar */}
-          <div>
-            <h4 className="font-semibold">Explorar</h4>
-            <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-              <li>
-                <Link href="/explore" className="hover:text-foreground">
-                  Todas las experiencias
-                </Link>
-              </li>
-              <li>
-                <Link href="/destinations/cancun" className="hover:text-foreground">
-                  Cancun
-                </Link>
-              </li>
-              <li>
-                <Link href="/destinations/cancun/info" className="hover:text-foreground">
-                  Info Cancun
-                </Link>
-              </li>
-            </ul>
-          </div>
-
           {/* Proveedores */}
           <div>
             <h4 className="font-semibold">Proveedores</h4>
             <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
               <li>
-                <Link href="/register" className="hover:text-foreground">
+                <Link href="/register/provider" className="hover:text-foreground">
                   Registra tu negocio
                 </Link>
               </li>
