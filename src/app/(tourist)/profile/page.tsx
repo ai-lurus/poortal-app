@@ -1,9 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { getCurrentProfile } from '@/queries/profiles'
-import { User, Mail, Phone, ChevronRight } from 'lucide-react'
+import { signOutAction } from '@/actions/auth'
+import { ROUTES } from '@/lib/constants'
+import { EditProfileForm } from '@/components/profile/edit-profile-form'
+import Link from 'next/link'
+import { User, Mail, Phone, ChevronRight, LogOut, Store, Shield } from 'lucide-react'
 
 export const metadata = {
   title: 'Mi Perfil',
@@ -43,13 +46,35 @@ export default async function ProfilePage() {
           <InfoRow icon={<Phone className="h-4 w-4 text-muted-foreground" />} label="Teléfono" value={profile?.phone} />
         </div>
 
-        <div className="px-4 pt-6 pb-2">
-          <Button className="w-full" disabled>
-            Editar perfil
-          </Button>
-          <p className="mt-2 text-center text-xs text-muted-foreground">
-            La edición de perfil se habilitará próximamente
-          </p>
+        <div className="px-4 pt-6 pb-8 space-y-3">
+          <EditProfileForm fullName={profile?.full_name ?? null} phone={profile?.phone ?? null} />
+          {profile?.role === 'provider' && (
+            <Link
+              href={ROUTES.providerDashboard}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              <Store className="h-4 w-4" />
+              Panel Proveedor
+            </Link>
+          )}
+          {profile?.role === 'admin' && (
+            <Link
+              href={ROUTES.adminDashboard}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              <Shield className="h-4 w-4" />
+              Panel Admin
+            </Link>
+          )}
+          <form action={signOutAction}>
+            <button
+              type="submit"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-destructive/30 px-4 py-3 text-sm font-medium text-destructive hover:bg-destructive/5 transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+              Cerrar Sesión
+            </button>
+          </form>
         </div>
       </div>
 
@@ -93,10 +118,16 @@ export default async function ProfilePage() {
                 <div className="rounded-md border px-3 py-2 text-sm">{profile?.phone || '--'}</div>
               </div>
               <Separator />
-              <Button disabled>Editar perfil</Button>
-              <p className="text-xs text-muted-foreground">
-                La edición de perfil se habilitará próximamente
-              </p>
+              <EditProfileForm fullName={profile?.full_name ?? null} phone={profile?.phone ?? null} />
+              <form action={signOutAction} className="pt-1">
+                <button
+                  type="submit"
+                  className="flex items-center gap-2 rounded-lg border border-destructive/30 px-4 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/5 transition-colors"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Cerrar Sesión
+                </button>
+              </form>
             </CardContent>
           </Card>
         </div>

@@ -6,8 +6,9 @@ import prisma from '@/lib/prisma'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Settings, FileText, CreditCard, Bell, Shield, CheckCircle, Clock, XCircle } from 'lucide-react'
+import { Settings, FileText, CreditCard, Bell, Shield, CheckCircle, Clock, XCircle, LogOut } from 'lucide-react'
 import { ProfileBusinessForm } from '@/components/provider/profile-business-form'
+import { signOutAction } from '@/actions/auth'
 
 export const metadata = { title: 'Mi Perfil' }
 
@@ -252,6 +253,16 @@ export default async function ProviderProfilePage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <form action={signOutAction} className="pt-2">
+        <button
+          type="submit"
+          className="flex items-center gap-2 rounded-lg border border-destructive/30 px-4 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/5 transition-colors"
+        >
+          <LogOut className="h-4 w-4" />
+          Cerrar Sesión
+        </button>
+      </form>
     </div>
   )
 }
