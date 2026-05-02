@@ -1,22 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 
+const createProfileSchema = z.object({
+  userId: z.string().min(1),
+  full_name: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
+  email: z.string().email('Correo electrónico inválido'),
+  phone: z
+    .string()
+    .refine(
+      (val) => val === '' || /^[+\d\s\-()]{10,}$/.test(val),
+      'Formato de teléfono inválido'
+    )
+    .optional()
+    .nullable(),
+})
+
 export async function POST(request: NextRequest) {
-  // Verify the caller is authenticated
   const session = await auth.api.getSession({ headers: request.headers })
   if (!session?.user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { userId, full_name, email, phone } = await request.json() as {
-    userId: string
-    full_name: string
-    email: string
-    phone?: string
+  const body = await request.json()
+  const result = createProfileSchema.safeParse(body)
+  if (!result.success) {
+    return NextResponse.json(
+      { error: 'Datos inválidos', issues: result.error.flatten().fieldErrors },
+      { status: 400 }
+    )
   }
 
-  // Only allow creating a profile for the authenticated user
+  const { userId, full_name, email, phone } = result.data
+
   if (session.user.id !== userId) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
