@@ -6,7 +6,6 @@ import { getDestinationInfoCategories } from '@/queries/destination_info'
 import { getDestinationBySlug } from '@/queries/destinations'
 import { getDestinationCollections } from '@/queries/collections'
 import { ROUTES } from '@/lib/constants'
-import { HomeHeader } from '@/components/home/home-header'
 import { DynamicIcon } from '@/lib/lucide-icon-map'
 import {
     Shield,
@@ -41,7 +40,6 @@ export default async function DestinationInfoPage({
 
     return (
         <div className="bg-background pb-20">
-            <HomeHeader />
 
             <main className="container mx-auto max-w-md md:max-w-2xl px-6 pt-4">
                 {/* Title */}

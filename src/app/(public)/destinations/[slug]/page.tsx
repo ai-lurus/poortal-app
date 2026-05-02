@@ -1,7 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getDestinationBySlug, getDestinationCategories } from '@/queries/destinations'
-import { HomeHeader } from '@/components/home/home-header'
 import { CategoryGrid } from '@/components/home/category-grid'
 import { SetActiveDestination } from '@/components/destinations/set-active-destination'
 import { Search } from 'lucide-react'
@@ -32,7 +31,6 @@ export default async function DestinationPage({
   return (
     <div className="bg-background pb-20">
       <SetActiveDestination slug={destination.slug} />
-      <HomeHeader />
 
       <main className="container mx-auto max-w-md md:max-w-2xl">
         {/* Greeting */}

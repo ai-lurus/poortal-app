@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { headers, cookies } from 'next/headers'
 import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
-import { HomeHeader } from '@/components/home/home-header'
 import { WalletTickets } from './wallet-tickets'
 
 export const metadata = { title: 'Mi Wallet' }
@@ -57,7 +56,6 @@ export default async function WalletPage({ searchParams }: Props) {
 
       return (
         <div className="bg-background pb-20">
-          <HomeHeader />
           {confirmed === '1' && (
             <div className="bg-teal-700 text-white px-6 py-4">
               <div className="max-w-lg mx-auto flex items-center gap-3">
@@ -112,7 +110,6 @@ export default async function WalletPage({ searchParams }: Props) {
 
     return (
       <>
-        <HomeHeader />
         <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center">
           <div className="w-20 h-20 rounded-full bg-teal-50 flex items-center justify-center mb-6">
             <Ticket className="h-9 w-9 text-teal-400" />
@@ -172,7 +169,6 @@ export default async function WalletPage({ searchParams }: Props) {
 
   return (
     <div className="bg-background pb-20">
-      <HomeHeader />
       {confirmed === '1' && (
         <div className="bg-teal-700 text-white px-6 py-4">
           <div className="max-w-lg mx-auto flex items-center gap-3">

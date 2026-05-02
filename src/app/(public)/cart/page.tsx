@@ -6,7 +6,6 @@ import { ChevronLeft, Percent, X, Loader2, Mail } from 'lucide-react'
 import Image from 'next/image'
 import { useCartStore } from '@/stores/cart-store'
 import { createBookingFromCart } from '@/actions/bookings'
-import { HomeHeader } from '@/components/home/home-header'
 import { useSession } from '@/lib/auth-client'
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -116,7 +115,6 @@ export default function CartPage() {
 
   return (
     <div className="bg-[#FDFDFD] pb-32 flex flex-col">
-      <HomeHeader />
       {/* Mobile sub-header */}
       <div className="flex items-center justify-between px-6 pt-6 pb-4 bg-white sticky top-0 z-10 border-b border-slate-100 mb-2 md:hidden">
         <button

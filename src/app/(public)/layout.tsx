@@ -9,10 +9,7 @@ export default function PublicLayout({
 }) {
   return (
     <div className="flex min-h-screen flex-col">
-      {/* Header hidden on mobile — destination page has its own inline header */}
-      <div className="hidden md:block">
-        <Header />
-      </div>
+      <Header />
       <main className="flex-1 pb-16 md:pb-0">{children}</main>
       <div className="hidden md:block">
         <Footer />

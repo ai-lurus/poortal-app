@@ -6,7 +6,6 @@ import { auth } from '@/lib/auth'
 import prisma from '@/lib/prisma'
 import { ROUTES } from '@/lib/constants'
 import { QrCodeDisplay } from './qr-code-display'
-import { HomeHeader } from '@/components/home/home-header'
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -83,7 +82,6 @@ export default async function TicketDetailPage({
 
   return (
     <div className="bg-background pb-20">
-      <HomeHeader />
 
       {/* Back */}
       <div className="container mx-auto max-w-sm md:max-w-lg px-6 pt-4">
