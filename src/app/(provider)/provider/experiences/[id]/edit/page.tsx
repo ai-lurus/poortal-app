@@ -61,8 +61,8 @@ export default async function EditExperiencePage({
   const availability = availabilityRows.map((r) => ({
     id: r.id,
     date: r.date.toISOString().split('T')[0],
-    start_time: r.start_time?.toISOString() ?? '',
-    end_time: r.end_time?.toISOString() ?? null,
+    start_time: r.start_time?.toISOString().slice(11, 16) ?? '',
+    end_time: r.end_time?.toISOString().slice(11, 16) ?? null,
     total_spots: r.total_spots,
     booked_spots: r.booked_spots,
     price_override: r.price_override ? Number(r.price_override) : null,

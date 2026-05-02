@@ -166,6 +166,11 @@ export async function updateExperienceAction(
   return { success: 'Experiencia actualizada correctamente.', experienceId }
 }
 
+function parseTimeToDate(timeStr: string): Date {
+  const [h, m] = timeStr.split(':').map(Number)
+  return new Date(Date.UTC(1970, 0, 1, h, m, 0))
+}
+
 export async function addAvailabilityAction(
   _prevState: ExperienceActionState,
   formData: FormData
@@ -190,8 +195,8 @@ export async function addAvailabilityAction(
     data: {
       experience_id: experienceId,
       date: new Date(parsed.data.date),
-      start_time: parsed.data.start_time,
-      end_time: parsed.data.end_time || null,
+      start_time: parseTimeToDate(parsed.data.start_time),
+      end_time: parsed.data.end_time ? parseTimeToDate(parsed.data.end_time) : null,
       total_spots: parsed.data.total_spots,
       price_override: parsed.data.price_override || null,
     },
@@ -265,8 +270,8 @@ export async function addRecurringAvailabilityAction(
     data: dates.map((date) => ({
       experience_id: experienceId,
       date: new Date(date + 'T12:00:00'),
-      start_time: startTime,
-      end_time: endTime || null,
+      start_time: parseTimeToDate(startTime),
+      end_time: endTime ? parseTimeToDate(endTime) : null,
       total_spots: totalSpots,
       price_override: priceOverride,
     })),

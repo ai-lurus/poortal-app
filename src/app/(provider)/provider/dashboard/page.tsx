@@ -25,6 +25,8 @@ import {
   AlertTriangle,
   MessageSquare,
   Clock,
+  Hourglass,
+  XCircle,
 } from 'lucide-react'
 
 export const metadata = {
@@ -78,8 +80,37 @@ export default async function ProviderDashboardPage() {
     .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
     .slice(0, 5)
 
+  const isPendingReview = provider.status === 'pending_review'
+  const isRejected = provider.status === 'rejected'
+  const canCreateExperience = !isPendingReview && !isRejected
+
   return (
     <div className="flex flex-col gap-6">
+      {isPendingReview && (
+        <div className="flex items-start gap-3 rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900 dark:bg-yellow-950/30">
+          <Hourglass className="mt-0.5 h-5 w-5 shrink-0 text-yellow-600 dark:text-yellow-500" />
+          <div>
+            <p className="font-semibold text-yellow-800 dark:text-yellow-400">Cuenta en revisión</p>
+            <p className="mt-0.5 text-sm text-yellow-700 dark:text-yellow-500">
+              El equipo de POORTAL revisará tu perfil en 1-2 días hábiles. Podrás publicar experiencias una vez que seas aprobado.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {isRejected && (
+        <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-4">
+          <XCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+          <div>
+            <p className="font-semibold text-destructive">Solicitud rechazada</p>
+            {provider.rejection_reason && (
+              <p className="mt-0.5 text-sm text-destructive/80">{provider.rejection_reason}</p>
+            )}
+            <p className="mt-1 text-sm text-muted-foreground">Contacta al equipo de soporte para más información.</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <LayoutDashboard className="h-8 w-8 text-primary" />
@@ -88,12 +119,14 @@ export default async function ProviderDashboardPage() {
             <p className="text-muted-foreground">{provider.business_name}</p>
           </div>
         </div>
-        <Button asChild>
-          <Link href="/provider/experiences/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Nueva Experiencia
-          </Link>
-        </Button>
+        {canCreateExperience && (
+          <Button asChild>
+            <Link href="/provider/experiences/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Nueva Experiencia
+            </Link>
+          </Button>
+        )}
       </div>
 
       {/* KPI cards */}

@@ -88,6 +88,7 @@ export function QRValidator({ todayCount, usedCount }: Props) {
   const [isPending, startTransition] = useTransition()
   const [cameraActive, setCameraActive] = useState(false)
   const scannerRef = useRef<any>(null)
+  const lastScanRef = useRef<{ code: string; ts: number } | null>(null)
   const scannerContainerId = 'qr-scanner-container'
 
   async function handleValidate(code: string) {
@@ -140,7 +141,12 @@ export function QRValidator({ todayCount, usedCount }: Props) {
       )
       scanner.render(
         (decodedText: string) => {
-          if (!isPending) handleValidate(decodedText)
+          const now = Date.now()
+          const last = lastScanRef.current
+          // Deduplicate: ignore same code within 3 seconds
+          if (last && last.code === decodedText && now - last.ts < 3000) return
+          lastScanRef.current = { code: decodedText, ts: now }
+          handleValidate(decodedText)
         },
         () => {}
       )

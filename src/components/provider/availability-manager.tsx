@@ -118,12 +118,11 @@ export function AvailabilityManager({ experienceId, availability }: Availability
   )
 
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr + 'T12:00:00')
-    return date.toLocaleDateString('es-MX', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    })
+    const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
+    const DAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb']
+    const [year, month, day] = dateStr.split('-').map(Number)
+    const date = new Date(year, month - 1, day)
+    return `${DAYS[date.getDay()]}, ${day} ${MONTHS[month - 1]}`
   }
 
   return (
@@ -162,7 +161,7 @@ export function AvailabilityManager({ experienceId, availability }: Availability
                   </Badge>
                   {slot.price_override && (
                     <Badge variant="outline">
-                      ${Number(slot.price_override).toLocaleString('es-MX')}
+                      ${Number(slot.price_override).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                     </Badge>
                   )}
                 </div>

@@ -17,8 +17,8 @@ export default async function ProviderNotificationsPage() {
   if (!provider) redirect('/register/provider')
 
   const [notifications, unreadCount] = await Promise.all([
-    getProviderNotifications(session.user.id),
-    getUnreadNotificationCount(session.user.id),
+    getProviderNotifications(provider.user_id),
+    getUnreadNotificationCount(provider.user_id),
   ])
 
   return (
