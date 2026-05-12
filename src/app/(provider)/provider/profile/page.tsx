@@ -195,8 +195,9 @@ export default async function ProviderProfilePage() {
 
               <div className="text-xs text-muted-foreground space-y-1">
                 <p>• Los pagos se procesan a través de Stripe</p>
-                <p>• La plataforma retiene una comisión del 15%</p>
-                <p>• Los fondos se transfieren automáticamente al completarse la experiencia</p>
+                <p>• El turista paga 10% de service fee sobre el precio publicado</p>
+                <p>• Poortal retiene 5% y el proveedor recibe el precio publicado + 5% cuando Stripe Connect esta activo</p>
+                <p>• Los fondos se transfieren automaticamente despues de un pago confirmado</p>
               </div>
             </CardContent>
           </Card>
@@ -246,7 +247,7 @@ export default async function ProviderProfilePage() {
               <div className="rounded-md bg-muted/50 px-4 py-3">
                 <p className="text-sm text-muted-foreground">
                   Para cambiar tu contraseña o habilitar autenticación de dos factores,
-                  usa la opción <strong>"Olvidé mi contraseña"</strong> en la pantalla de inicio de sesión.
+                  usa la opción <strong>&quot;Olvidé mi contraseña&quot;</strong> en la pantalla de inicio de sesión.
                 </p>
               </div>
             </CardContent>

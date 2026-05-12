@@ -5,6 +5,7 @@ import { auth } from '@/lib/auth'
 import { headers } from 'next/headers'
 import prisma from '@/lib/prisma'
 import { providerRegistrationSchema, providerCompleteProfileSchema } from '@/lib/validations/provider'
+import { stripe } from '@/lib/stripe/config'
 
 export type ProviderActionState = {
   error?: string
@@ -110,4 +111,72 @@ export async function completeProviderProfileAction(
   })
 
   return { success: 'Perfil actualizado correctamente.' }
+}
+
+export async function createStripeConnectOnboardingAction(): Promise<void> {
+  const current = await getCurrentProfileId()
+  if (!current) redirect('/login')
+
+  const provider = await prisma.provider_profiles.findFirst({
+    where: { user_id: current.profileId },
+    include: {
+      profiles_provider_profiles_user_idToprofiles: {
+        select: { email: true },
+      },
+    },
+  })
+  if (!provider) redirect('/register/provider')
+
+  let stripeAccountId = provider.stripe_account_id
+  if (!stripeAccountId) {
+    const account = await stripe.accounts.create({
+      type: 'express',
+      country: 'MX',
+      email: provider.profiles_provider_profiles_user_idToprofiles.email,
+      business_profile: {
+        name: provider.business_name,
+        product_description: provider.short_description,
+      },
+      capabilities: {
+        transfers: { requested: true },
+      },
+      metadata: {
+        providerId: provider.id,
+        profileId: current.profileId,
+      },
+    })
+
+    stripeAccountId = account.id
+    await prisma.provider_profiles.update({
+      where: { id: provider.id },
+      data: { stripe_account_id: stripeAccountId },
+    })
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const accountLink = await stripe.accountLinks.create({
+    account: stripeAccountId,
+    type: 'account_onboarding',
+    refresh_url: `${appUrl}/provider/onboarding?stripe=refresh`,
+    return_url: `${appUrl}/provider/onboarding?stripe=return`,
+  })
+
+  redirect(accountLink.url)
+}
+
+export async function syncStripeConnectStatus(providerId: string) {
+  const provider = await prisma.provider_profiles.findUnique({
+    where: { id: providerId },
+    select: { stripe_account_id: true },
+  })
+
+  if (!provider?.stripe_account_id) return
+
+  const account = await stripe.accounts.retrieve(provider.stripe_account_id)
+  const complete = Boolean(account.details_submitted && account.charges_enabled && account.payouts_enabled)
+
+  await prisma.provider_profiles.update({
+    where: { id: providerId },
+    data: { stripe_onboarding_complete: complete },
+  })
 }
