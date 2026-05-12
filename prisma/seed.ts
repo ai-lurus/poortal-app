@@ -2,8 +2,8 @@
  * Seed: crea datos de prueba
  *
  * Crea:
- *   - 1 destino (Tulum)
- *   - 4 categorías + subcategorías
+ *   - 4 destinos de Quintana Roo
+ *   - categorías del UI mobile-first + subcategorías iniciales
  *   - 1 usuario admin
  *   - 1 usuario proveedor con perfil, experiencias y disponibilidad
  *
@@ -72,26 +72,73 @@ async function main() {
 // ─── destino ──────────────────────────────────────────────────────────────────
 
 async function seedDestination() {
-  console.log('📍 Creando destino...')
-  await prisma.destinations.upsert({
-    where: { id: IDS.destination },
-    create: {
+  console.log('📍 Creando destinos...')
+
+  const destinations = [
+    {
+      id: 'a1b2c3d4-0001-0001-0001-000000000002',
+      name: 'Cancun',
+      slug: 'cancun',
+      description: 'Playas caribeñas, vida nocturna, gastronomía y experiencias acuáticas.',
+      city: 'Cancun',
+      latitude: 21.1619,
+      longitude: -86.8515,
+      cover_image_url: 'https://images.unsplash.com/photo-1552074284-5e88ef1aef18?w=1200',
+    },
+    {
+      id: 'a1b2c3d4-0001-0001-0001-000000000003',
+      name: 'Playa del Carmen',
+      slug: 'playa-del-carmen',
+      description: 'Experiencias frente al mar, tours, restaurantes y compras en la Riviera Maya.',
+      city: 'Playa del Carmen',
+      latitude: 20.6296,
+      longitude: -87.0739,
+      cover_image_url: 'https://images.unsplash.com/photo-1510097467424-192d713fd8b2?w=1200',
+    },
+    {
+      id: 'a1b2c3d4-0001-0001-0001-000000000004',
+      name: 'Isla Mujeres',
+      slug: 'isla-mujeres',
+      description: 'Isla caribeña con beach clubs, snorkel, golf carts y paseos en barco.',
+      city: 'Isla Mujeres',
+      latitude: 21.2322,
+      longitude: -86.7341,
+      cover_image_url: 'https://images.unsplash.com/photo-1586500036706-41963de24d8b?w=1200',
+    },
+    {
       id: IDS.destination,
       name: 'Tulum',
       slug: 'tulum',
-      description:
-        'Paraíso caribeño conocido por sus ruinas mayas, cenotes cristalinos y playas de arena blanca.',
-      country: 'México',
-      state: 'Quintana Roo',
+      description: 'Paraíso caribeño conocido por sus ruinas mayas, cenotes cristalinos y playas de arena blanca.',
       city: 'Tulum',
       latitude: 20.2114,
       longitude: -87.4654,
       cover_image_url: 'https://images.unsplash.com/photo-1682686578023-dc680e7a3aeb?w=1200',
-      is_active: true,
     },
-    update: {},
-  })
-  console.log('  ✓ Tulum')
+  ]
+
+  for (const destination of destinations) {
+    await prisma.destinations.upsert({
+      where: { slug: destination.slug },
+      create: {
+        ...destination,
+        country: 'México',
+        state: 'Quintana Roo',
+        is_active: true,
+      },
+      update: {
+        name: destination.name,
+        description: destination.description,
+        city: destination.city,
+        latitude: destination.latitude,
+        longitude: destination.longitude,
+        cover_image_url: destination.cover_image_url,
+        is_active: true,
+      },
+    })
+  }
+
+  console.log('  ✓ Cancun, Playa del Carmen, Isla Mujeres, Tulum')
 }
 
 // ─── categorías ───────────────────────────────────────────────────────────────
@@ -100,10 +147,16 @@ async function seedCategories() {
   console.log('🏷️  Creando categorías...')
 
   const categories = [
-    { id: IDS.catAventura,    name: 'Aventura',     slug: 'aventura',     icon: '🏄', sort_order: 1 },
-    { id: IDS.catGastronomia, name: 'Gastronomía',  slug: 'gastronomia',  icon: '🍽️', sort_order: 2 },
-    { id: IDS.catCultura,     name: 'Cultura',      slug: 'cultura',      icon: '🏛️', sort_order: 3 },
-    { id: IDS.catBienestar,   name: 'Bienestar',    slug: 'bienestar',    icon: '🧘', sort_order: 4 },
+    { id: 'ca000000-0000-0000-0000-000000000101', name: 'Tours', slug: 'tours', icon: '🚐', sort_order: 1 },
+    { id: 'ca000000-0000-0000-0000-000000000102', name: 'Ride', slug: 'ride', icon: '🚕', sort_order: 2 },
+    { id: 'ca000000-0000-0000-0000-000000000103', name: 'Food', slug: 'food', icon: '🌮', sort_order: 3 },
+    { id: 'ca000000-0000-0000-0000-000000000104', name: 'Party', slug: 'party', icon: '🎉', sort_order: 4 },
+    { id: IDS.catAventura, name: 'Sea', slug: 'sea', icon: '🌊', sort_order: 5 },
+    { id: IDS.catCultura, name: 'Culture', slug: 'culture', icon: '🏛️', sort_order: 6 },
+    { id: 'ca000000-0000-0000-0000-000000000107', name: 'Sports', slug: 'sports', icon: '🏄', sort_order: 7 },
+    { id: 'ca000000-0000-0000-0000-000000000108', name: 'Stay', slug: 'stay', icon: '🏨', sort_order: 8 },
+    { id: 'ca000000-0000-0000-0000-000000000109', name: 'Shopping', slug: 'shopping', icon: '🛍️', sort_order: 9 },
+    { id: IDS.catBienestar, name: 'Wellness', slug: 'wellness', icon: '🧖', sort_order: 10 },
   ]
 
   for (const cat of categories) {
@@ -120,20 +173,22 @@ async function seedCategories() {
     select: { id: true, slug: true },
   })
   const catIdBySlug = Object.fromEntries(dbCats.map((c) => [c.slug, c.id]))
-  IDS.catAventura    = catIdBySlug['aventura']    ?? IDS.catAventura
-  IDS.catGastronomia = catIdBySlug['gastronomia'] ?? IDS.catGastronomia
-  IDS.catCultura     = catIdBySlug['cultura']     ?? IDS.catCultura
-  IDS.catBienestar   = catIdBySlug['bienestar']   ?? IDS.catBienestar
+  IDS.catAventura    = catIdBySlug['sea']      ?? IDS.catAventura
+  IDS.catGastronomia = catIdBySlug['food']     ?? IDS.catGastronomia
+  IDS.catCultura     = catIdBySlug['culture']  ?? IDS.catCultura
+  IDS.catBienestar   = catIdBySlug['wellness'] ?? IDS.catBienestar
 
   const subcategories = [
-    { category_id: IDS.catAventura,    name: 'Acuático',         slug: 'acuatico',     sort_order: 1 },
-    { category_id: IDS.catAventura,    name: 'Trekking',         slug: 'trekking',     sort_order: 2 },
-    { category_id: IDS.catGastronomia, name: 'Restaurantes',     slug: 'restaurantes', sort_order: 1 },
-    { category_id: IDS.catGastronomia, name: 'Clases de Cocina', slug: 'clases-cocina',sort_order: 2 },
-    { category_id: IDS.catCultura,     name: 'Arqueología',      slug: 'arqueologia',  sort_order: 1 },
-    { category_id: IDS.catCultura,     name: 'Arte Local',       slug: 'arte-local',   sort_order: 2 },
-    { category_id: IDS.catBienestar,   name: 'Yoga',             slug: 'yoga',         sort_order: 1 },
-    { category_id: IDS.catBienestar,   name: 'Spa & Masajes',    slug: 'spa-masajes',  sort_order: 2 },
+    { category_id: catIdBySlug['tours'], name: 'Adventure', slug: 'adventure', sort_order: 1 },
+    { category_id: catIdBySlug['tours'], name: 'Discovery', slug: 'discovery', sort_order: 2 },
+    { category_id: IDS.catAventura, name: 'Snorkel', slug: 'snorkel', sort_order: 1 },
+    { category_id: IDS.catAventura, name: 'Boats', slug: 'boats', sort_order: 2 },
+    { category_id: IDS.catGastronomia, name: 'Restaurants', slug: 'restaurants', sort_order: 1 },
+    { category_id: IDS.catGastronomia, name: 'Cooking Classes', slug: 'cooking-classes', sort_order: 2 },
+    { category_id: IDS.catCultura, name: 'Archaeology', slug: 'archaeology', sort_order: 1 },
+    { category_id: IDS.catCultura, name: 'Local Art', slug: 'local-art', sort_order: 2 },
+    { category_id: IDS.catBienestar, name: 'Yoga', slug: 'yoga', sort_order: 1 },
+    { category_id: IDS.catBienestar, name: 'Spa & Massages', slug: 'spa-massages', sort_order: 2 },
   ]
 
   for (const sub of subcategories) {
@@ -146,25 +201,31 @@ async function seedCategories() {
 
   // Re-leer IDs de subcategorías
   const dbSubs = await prisma.subcategories.findMany({
-    where: { slug: { in: ['acuatico', 'yoga'] } },
+    where: { slug: { in: ['snorkel', 'yoga'] } },
     select: { id: true, slug: true },
   })
   const subIdBySlug = Object.fromEntries(dbSubs.map((s) => [s.slug, s.id]))
-  IDS.subAcuatico = subIdBySlug['acuatico'] ?? IDS.subAcuatico
+  IDS.subAcuatico = subIdBySlug['snorkel'] ?? IDS.subAcuatico
   IDS.subYoga     = subIdBySlug['yoga']     ?? IDS.subYoga
 
-  // Vincular destino con categorías
-  for (const catId of Object.values(catIdBySlug)) {
-    await prisma.destination_categories.upsert({
-      where: {
-        destination_id_category_id: {
-          destination_id: IDS.destination,
-          category_id: catId,
+  const launchDestinations = await prisma.destinations.findMany({
+    where: { slug: { in: ['cancun', 'playa-del-carmen', 'isla-mujeres', 'tulum'] } },
+    select: { id: true },
+  })
+
+  for (const destination of launchDestinations) {
+    for (const catId of Object.values(catIdBySlug)) {
+      await prisma.destination_categories.upsert({
+        where: {
+          destination_id_category_id: {
+            destination_id: destination.id,
+            category_id: catId,
+          },
         },
-      },
-      create: { destination_id: IDS.destination, category_id: catId },
-      update: {},
-    })
+        create: { destination_id: destination.id, category_id: catId },
+        update: {},
+      })
+    }
   }
 
   console.log(`  ✓ ${categories.length} categorías, ${subcategories.length} subcategorías`)

@@ -2,7 +2,11 @@
 
 import { useActionState } from 'react'
 import Link from 'next/link'
-import { completeProviderProfileAction, type ProviderActionState } from '@/actions/providers'
+import {
+  completeProviderProfileAction,
+  createStripeConnectOnboardingAction,
+  type ProviderActionState,
+} from '@/actions/providers'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -247,10 +251,29 @@ export function OnboardingClient({ provider }: OnboardingClientProps) {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex h-16 items-center justify-center rounded-lg border border-dashed">
-              <p className="text-sm text-muted-foreground">
-                Configuracion de pagos disponible en Fase 3.
-              </p>
+            <div className="flex flex-col gap-4 rounded-lg border p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium">Stripe Connect Express</p>
+                  <p className="text-xs text-muted-foreground">
+                    {provider.stripe_account_id
+                      ? `Cuenta ${provider.stripe_account_id.slice(0, 8)}...`
+                      : 'Conecta tu cuenta para recibir pagos.'}
+                  </p>
+                </div>
+                <Badge variant={provider.stripe_onboarding_complete ? 'default' : 'secondary'}>
+                  {provider.stripe_onboarding_complete ? 'Activo' : 'Pendiente'}
+                </Badge>
+              </div>
+
+              {!provider.stripe_onboarding_complete && (
+                <form action={createStripeConnectOnboardingAction}>
+                  <Button type="submit" className="w-full sm:w-auto">
+                    <CreditCard className="mr-2 h-4 w-4" />
+                    Conectar Stripe
+                  </Button>
+                </form>
+              )}
             </div>
           </CardContent>
         </Card>

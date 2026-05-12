@@ -44,6 +44,7 @@ export default function CartPage() {
       items: items.map((item) => ({
         experienceId: item.experienceId,
         availabilityId: item.availabilityId,
+        title: item.title,
         providerId: item.providerId,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
@@ -69,7 +70,11 @@ export default function CartPage() {
     }
 
     clearCart()
-    router.push('/wallet?confirmed=1')
+    if (result.checkoutUrl) {
+      window.location.href = result.checkoutUrl
+    } else {
+      router.push('/wallet?confirmed=1')
+    }
   }
 
   async function handleConfirm() {
@@ -110,8 +115,8 @@ export default function CartPage() {
     return acc + itemTotal
   }, 0)
 
-  const iva = subtotal * 0.16
-  const total = subtotal + iva
+  const serviceFee = subtotal * 0.10
+  const total = subtotal + serviceFee
 
   return (
     <div className="bg-[#FDFDFD] pb-32 flex flex-col">
@@ -231,11 +236,7 @@ export default function CartPage() {
                   </div>
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-semibold text-slate-700 w-24 text-right">Service Fee:</span>
-                    <span className="text-slate-600 w-20 text-left">0</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-semibold text-slate-700 w-24 text-right">IVA (16%):</span>
-                    <span className="text-slate-600 w-20 text-left">{fmt(iva)}</span>
+                    <span className="text-slate-600 w-20 text-left">{fmt(serviceFee)}</span>
                   </div>
                 </div>
                 <div className="border-t border-dashed border-slate-300 mx-4" />

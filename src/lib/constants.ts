@@ -1,7 +1,10 @@
 export const APP_NAME = 'POORTAL'
 export const APP_DESCRIPTION = 'Concierge Digital para Destinos Turisticos'
 
-export const PLATFORM_FEE_PERCENTAGE = 15 // 15% platform fee
+export const BUYER_SERVICE_FEE_PERCENTAGE = 10
+export const POORTAL_FEE_PERCENTAGE = 5
+export const SELLER_SERVICE_SHARE_PERCENTAGE = 5
+export const PLATFORM_FEE_PERCENTAGE = POORTAL_FEE_PERCENTAGE
 
 export const ROUTES = {
   // Public
