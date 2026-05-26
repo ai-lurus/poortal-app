@@ -2,8 +2,10 @@ import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { auth } from '@/lib/auth'
 import { getProviderByAuthUserId } from '@/queries/providers'
-import { getProviderBookingItems, getProviderBookingStats } from '@/queries/bookings'
+import { getProviderBookingStats } from '@/queries/bookings'
 import { getMonthlyBookingStats } from '@/queries/analytics'
+import prisma from '@/lib/prisma'
+import { POORTAL_FEE_PERCENTAGE, SELLER_SERVICE_SHARE_PERCENTAGE } from '@/lib/constants'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { CreditCard, TrendingUp, Wallet, Calendar } from 'lucide-react'
@@ -15,8 +17,8 @@ function formatMoney(amount: number, currency = 'MXN') {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency }).format(amount)
 }
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('es-MX', {
+function formatDate(date: string | Date) {
+  return new Date(date).toLocaleDateString('es-MX', {
     day: '2-digit', month: 'short', year: 'numeric',
   })
 }
@@ -28,9 +30,28 @@ export default async function ProviderPaymentsPage() {
   const provider = await getProviderByAuthUserId(session.user.id)
   if (!provider) redirect('/register/provider')
 
-  const [stats, completedItems, monthlyStats] = await Promise.all([
+  const [stats, transferPayments, monthlyStats] = await Promise.all([
     getProviderBookingStats(provider.id),
-    getProviderBookingItems(provider.id, 'completed'),
+    prisma.payments.findMany({
+      where: {
+        type: 'transfer',
+        booking_items: { provider_id: provider.id },
+      },
+      include: {
+        booking_items: {
+          include: {
+            experiences: { select: { title: true } },
+            bookings: {
+              select: {
+                booking_number: true,
+                profiles: { select: { full_name: true, email: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { created_at: 'desc' },
+    }),
     getMonthlyBookingStats(provider.id, 6),
   ])
 
@@ -90,12 +111,12 @@ export default async function ProviderPaymentsPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Comision plataforma</CardTitle>
+            <CardTitle className="text-sm font-medium">Modelo Poortal</CardTitle>
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">15%</div>
-            <p className="text-xs text-muted-foreground">Por cada transaccion completada</p>
+            <div className="text-2xl font-bold">{POORTAL_FEE_PERCENTAGE}% / {SELLER_SERVICE_SHARE_PERCENTAGE}%</div>
+            <p className="text-xs text-muted-foreground">Poortal / share adicional al proveedor</p>
           </CardContent>
         </Card>
       </div>
@@ -105,7 +126,7 @@ export default async function ProviderPaymentsPage() {
           <CardContent className="pt-6">
             <p className="text-sm text-amber-800 dark:text-amber-200">
               <strong>Configura tu cuenta Stripe</strong> para empezar a recibir pagos directamente en tu cuenta bancaria.
-              Completa el proceso de onboarding desde la seccion de configuracion.
+          Completa el proceso de onboarding desde la seccion de configuracion.
             </p>
           </CardContent>
         </Card>
@@ -114,7 +135,7 @@ export default async function ProviderPaymentsPage() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium">Ingresos netos — últimos 6 meses</CardTitle>
-          <p className="text-xs text-muted-foreground">Después de comisión del 15%</p>
+          <p className="text-xs text-muted-foreground">Precio publicado + {SELLER_SERVICE_SHARE_PERCENTAGE}% cuando el pago se transfiere</p>
         </CardHeader>
         <CardContent>
           <PaymentsRevenueChart data={monthlyStats} />
@@ -126,11 +147,11 @@ export default async function ProviderPaymentsPage() {
           <CardTitle>Historial de ingresos</CardTitle>
         </CardHeader>
         <CardContent>
-          {completedItems.length === 0 ? (
+          {transferPayments.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
               <CreditCard className="h-10 w-10 text-muted-foreground/50" />
               <p className="mt-3 text-sm text-muted-foreground">
-                Aun no hay reservas completadas con pago registrado.
+                Aun no hay transferencias registradas para este proveedor.
               </p>
             </div>
           ) : (
@@ -142,10 +163,11 @@ export default async function ProviderPaymentsPage() {
                 <span className="text-right">Monto neto</span>
               </div>
               <div className="divide-y">
-                {completedItems.map((item) => {
-                  const net = Number(item.subtotal) * 0.85
+                {transferPayments.map((payment) => {
+                  const item = payment.booking_items
+                  if (!item) return null
                   return (
-                    <div key={item.id} className="grid grid-cols-5 gap-4 px-4 py-3 text-sm items-center">
+                    <div key={payment.id} className="grid grid-cols-5 gap-4 px-4 py-3 text-sm items-center">
                       <div className="col-span-2">
                         <p className="font-medium truncate">{item.experiences?.title ?? 'Experiencia'}</p>
                         <p className="text-xs text-muted-foreground">{formatDate(item.service_date)}</p>
@@ -153,9 +175,11 @@ export default async function ProviderPaymentsPage() {
                       <span className="text-sm text-muted-foreground truncate">
                         {item.bookings?.profiles?.full_name ?? item.bookings?.profiles?.email ?? '--'}
                       </span>
-                      <Badge variant="outline" className="w-fit text-xs">Completada</Badge>
+                      <Badge variant="outline" className="w-fit text-xs">
+                        {payment.status === 'succeeded' ? 'Transferida' : payment.status}
+                      </Badge>
                       <span className="text-right font-medium text-green-700 dark:text-green-400">
-                        {formatMoney(net)}
+                        {formatMoney(Number(payment.amount), payment.currency)}
                       </span>
                     </div>
                   )

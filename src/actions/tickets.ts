@@ -28,6 +28,7 @@ export async function validateTicketAction(qrCode: string): Promise<ValidateResu
       include: {
         experiences: { select: { title: true } },
         profiles: { select: { full_name: true, email: true } },
+        booking_items: { select: { booking_id: true } },
       },
     })
 
@@ -45,10 +46,30 @@ export async function validateTicketAction(qrCode: string): Promise<ValidateResu
       return { status: 'wrong_date', serviceDate: serviceDay }
     }
 
-    // Mark as used
-    await prisma.tickets.update({
-      where: { id: ticket.id },
-      data: { status: 'used', scanned_at: new Date() },
+    await prisma.$transaction(async (tx) => {
+      await tx.tickets.update({
+        where: { id: ticket.id },
+        data: { status: 'used', scanned_at: new Date() },
+      })
+
+      await tx.booking_items.update({
+        where: { id: ticket.booking_item_id },
+        data: { status: 'completed' },
+      })
+
+      const remainingOpenItems = await tx.booking_items.count({
+        where: {
+          booking_id: ticket.booking_items.booking_id,
+          status: { in: ['pending', 'confirmed'] },
+        },
+      })
+
+      if (remainingOpenItems === 0) {
+        await tx.bookings.update({
+          where: { id: ticket.booking_items.booking_id },
+          data: { status: 'completed' },
+        })
+      }
     })
 
     revalidatePath('/provider/validator')

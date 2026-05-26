@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft, Percent, X, Loader2, Mail } from 'lucide-react'
 import Image from 'next/image'
 import { useCartStore } from '@/stores/cart-store'
@@ -24,6 +24,7 @@ function formatTime(time: string) {
 
 export default function CartPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { data: session, isPending: sessionLoading } = useSession()
   const { items, removeItem, clearCart } = useCartStore()
   const [agreed, setAgreed] = useState(false)
@@ -44,6 +45,7 @@ export default function CartPage() {
       items: items.map((item) => ({
         experienceId: item.experienceId,
         availabilityId: item.availabilityId,
+        title: item.title,
         providerId: item.providerId,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
@@ -68,8 +70,12 @@ export default function CartPage() {
       return
     }
 
-    clearCart()
-    router.push('/wallet?confirmed=1')
+    if (result.checkoutUrl) {
+      window.location.href = result.checkoutUrl
+    } else {
+      clearCart()
+      router.push('/wallet?confirmed=1')
+    }
   }
 
   async function handleConfirm() {
@@ -110,8 +116,8 @@ export default function CartPage() {
     return acc + itemTotal
   }, 0)
 
-  const iva = subtotal * 0.16
-  const total = subtotal + iva
+  const serviceFee = subtotal * 0.10
+  const total = subtotal + serviceFee
 
   return (
     <div className="bg-[#FDFDFD] pb-32 flex flex-col">
@@ -135,6 +141,12 @@ export default function CartPage() {
       </div>
 
       <main className="container mx-auto px-6 mt-4 max-w-md md:max-w-5xl">
+        {searchParams.get('cancelled') === '1' && items.length > 0 && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-800">
+            Tu pago fue cancelado. Conservamos tu carrito para que puedas intentarlo de nuevo.
+          </div>
+        )}
+
         {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <p className="text-sm text-slate-400">Tu carrito está vacío</p>
@@ -231,11 +243,7 @@ export default function CartPage() {
                   </div>
                   <div className="flex justify-between items-center text-xs">
                     <span className="font-semibold text-slate-700 w-24 text-right">Service Fee:</span>
-                    <span className="text-slate-600 w-20 text-left">0</span>
-                  </div>
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="font-semibold text-slate-700 w-24 text-right">IVA (16%):</span>
-                    <span className="text-slate-600 w-20 text-left">{fmt(iva)}</span>
+                    <span className="text-slate-600 w-20 text-left">{fmt(serviceFee)}</span>
                   </div>
                 </div>
                 <div className="border-t border-dashed border-slate-300 mx-4" />

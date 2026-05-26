@@ -1,4 +1,5 @@
 import prisma from '@/lib/prisma'
+import { SELLER_SERVICE_SHARE_PERCENTAGE } from '@/lib/constants'
 import type { Booking, BookingItem } from '@/types'
 
 export type BookingItemWithDetails = BookingItem & {
@@ -44,7 +45,7 @@ export async function getProviderBookingItems(
   return rows as unknown as BookingItemWithDetails[]
 }
 
-const PLATFORM_FEE_RATE = 0.15
+const SELLER_PAYOUT_RATE = 1 + SELLER_SERVICE_SHARE_PERCENTAGE / 100
 
 export async function getProviderBookingStats(providerId: string) {
   const now = new Date()
@@ -80,7 +81,7 @@ export async function getProviderBookingStats(providerId: string) {
     cancelledCount,
     totalRevenue,
     monthlyRevenue,
-    netRevenue: totalRevenue * (1 - PLATFORM_FEE_RATE),
-    netMonthlyRevenue: monthlyRevenue * (1 - PLATFORM_FEE_RATE),
+    netRevenue: totalRevenue * SELLER_PAYOUT_RATE,
+    netMonthlyRevenue: monthlyRevenue * SELLER_PAYOUT_RATE,
   }
 }

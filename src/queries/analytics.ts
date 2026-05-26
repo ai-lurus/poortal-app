@@ -1,6 +1,7 @@
 import prisma from '@/lib/prisma'
+import { SELLER_SERVICE_SHARE_PERCENTAGE } from '@/lib/constants'
 
-const PLATFORM_FEE_RATE = 0.15
+const SELLER_PAYOUT_RATE = 1 + SELLER_SERVICE_SHARE_PERCENTAGE / 100
 
 export type MonthlyBookingStat = {
   month: string // 'Ene', 'Feb', etc.
@@ -76,7 +77,7 @@ export async function getMonthlyBookingStats(
     month: MONTH_LABELS[month],
     year,
     reservas,
-    ingresos: bruto * (1 - PLATFORM_FEE_RATE),
+    ingresos: bruto * SELLER_PAYOUT_RATE,
   }))
 }
 
@@ -110,7 +111,7 @@ export async function getExperienceStats(providerId: string): Promise<Experience
       id,
       title,
       reservas,
-      ingresos: bruto * (1 - PLATFORM_FEE_RATE),
+      ingresos: bruto * SELLER_PAYOUT_RATE,
     }))
     .sort((a, b) => b.reservas - a.reservas)
 }

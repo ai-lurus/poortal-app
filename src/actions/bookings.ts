@@ -3,10 +3,12 @@
 import { auth } from '@/lib/auth'
 import { headers, cookies } from 'next/headers'
 import prisma from '@/lib/prisma'
+import { stripe, STRIPE_CONFIG } from '@/lib/stripe/config'
 
 interface CartItem {
   experienceId: string
   availabilityId: string | null
+  title: string
   providerId: string
   quantity: number
   unitPrice: number
@@ -30,6 +32,14 @@ function parseServiceTime(serviceTime: string | null): Date | null {
   return new Date(`1970-01-01T${serviceTime}Z`)
 }
 
+function lineTotal(item: CartItem) {
+  return item.pricingType === 'per_person' ? item.unitPrice * item.quantity : item.unitPrice
+}
+
+function toStripeAmount(amount: number) {
+  return Math.round(amount * 100)
+}
+
 export async function createBookingFromCart({ items, guestEmail, guestName }: CreateBookingInput) {
   if (items.length === 0) return { error: 'empty_cart' as const }
 
@@ -42,13 +52,13 @@ export async function createBookingFromCart({ items, guestEmail, guestName }: Cr
   const missing = experienceIds.filter((id) => !foundIds.has(id))
   if (missing.length > 0) return { error: 'invalid_experiences' as const }
 
-  const session = await auth.api.getSession({ headers: await headers() })
+  const authSession = await auth.api.getSession({ headers: await headers() })
 
   let profileId: string
 
-  if (session?.user) {
+  if (authSession?.user) {
     const profile = await prisma.profiles.findFirst({
-      where: { user_id: session.user.id },
+      where: { user_id: authSession.user.id },
       select: { id: true },
     })
     if (!profile) return { error: 'not_authenticated' as const }
@@ -77,12 +87,10 @@ export async function createBookingFromCart({ items, guestEmail, guestName }: Cr
     }
   }
 
-  const subtotal = items.reduce((acc, item) => {
-    const lineTotal = item.pricingType === 'per_person' ? item.unitPrice * item.quantity : item.unitPrice
-    return acc + lineTotal
-  }, 0)
-  const iva = subtotal * 0.16
-  const total = subtotal + iva
+  const subtotal = items.reduce((acc, item) => acc + lineTotal(item), 0)
+  const buyerServiceFee = subtotal * (STRIPE_CONFIG.buyerServiceFeePercentage / 100)
+  const poortalFee = subtotal * (STRIPE_CONFIG.poortalFeePercentage / 100)
+  const total = subtotal + buyerServiceFee
 
   const bookingNumber = `POORTAL-${crypto.randomUUID().substring(0, 8).toUpperCase()}`
   const guestToken = crypto.randomUUID()
@@ -91,20 +99,20 @@ export async function createBookingFromCart({ items, guestEmail, guestName }: Cr
     data: {
       booking_number: bookingNumber,
       user_id: profileId,
-      guest_email: session?.user ? null : guestEmail?.trim().toLowerCase(),
+      guest_email: authSession?.user ? null : guestEmail?.trim().toLowerCase(),
       guest_token: guestToken,
       status: 'pending_payment',
       total_amount: total,
-      platform_fee: 0,
+      platform_fee: poortalFee,
       currency: items[0].currency,
     },
     select: { id: true },
   })
 
   for (const item of items) {
-    const lineTotal = item.pricingType === 'per_person' ? item.unitPrice * item.quantity : item.unitPrice
+    const itemSubtotal = lineTotal(item)
 
-    const bookingItem = await prisma.booking_items.create({
+    await prisma.booking_items.create({
       data: {
         booking_id: booking.id,
         experience_id: item.experienceId,
@@ -113,29 +121,14 @@ export async function createBookingFromCart({ items, guestEmail, guestName }: Cr
         status: 'pending',
         quantity: item.quantity,
         unit_price: item.unitPrice,
-        subtotal: lineTotal,
+        subtotal: itemSubtotal,
         service_date: new Date(item.serviceDate),
         service_time: parseServiceTime(item.serviceTime),
-      },
-      select: { id: true },
-    })
-
-    await prisma.tickets.create({
-      data: {
-        booking_item_id: bookingItem.id,
-        user_id: profileId,
-        experience_id: item.experienceId,
-        provider_id: item.providerId,
-        qr_code: crypto.randomUUID(),
-        status: 'active',
-        service_date: new Date(item.serviceDate),
-        service_time: parseServiceTime(item.serviceTime),
-        quantity: item.quantity,
       },
     })
   }
 
-  if (!session?.user) {
+  if (!authSession?.user) {
     const cookieStore = await cookies()
     const existing = cookieStore.get('guest_tokens')?.value
     const tokens: string[] = existing ? JSON.parse(existing) : []
@@ -147,5 +140,57 @@ export async function createBookingFromCart({ items, guestEmail, guestName }: Cr
     })
   }
 
-  return { bookingId: booking.id, guestToken }
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+  const checkoutSession = await stripe.checkout.sessions.create({
+    mode: 'payment',
+    payment_method_types: ['card'],
+    customer_email: authSession?.user ? undefined : guestEmail?.trim().toLowerCase(),
+    line_items: [
+      ...items.map((item) => ({
+        quantity: 1,
+        price_data: {
+          currency: item.currency.toLowerCase(),
+          unit_amount: toStripeAmount(lineTotal(item)),
+          product_data: {
+            name: item.title,
+            description: item.providerId,
+          },
+        },
+      })),
+      {
+        quantity: 1,
+        price_data: {
+          currency: items[0].currency.toLowerCase(),
+          unit_amount: toStripeAmount(buyerServiceFee),
+          product_data: {
+            name: 'Poortal service fee',
+            description: '10% marketplace service fee',
+          },
+        },
+      },
+    ],
+    metadata: {
+      bookingId: booking.id,
+      guestToken,
+      bookingNumber,
+    },
+    payment_intent_data: {
+      metadata: {
+        bookingId: booking.id,
+        bookingNumber,
+      },
+      transfer_group: bookingNumber,
+    },
+    success_url: `${appUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${appUrl}/cart?cancelled=1`,
+  })
+
+  await prisma.bookings.update({
+    where: { id: booking.id },
+    data: { stripe_checkout_session_id: checkoutSession.id },
+  })
+
+  if (!checkoutSession.url) return { error: 'stripe_checkout_failed' as const }
+
+  return { bookingId: booking.id, guestToken, checkoutUrl: checkoutSession.url }
 }
