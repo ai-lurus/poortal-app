@@ -181,7 +181,7 @@ export async function createBookingFromCart({ items, guestEmail, guestName }: Cr
       },
       transfer_group: bookingNumber,
     },
-    success_url: `${appUrl}/wallet?confirmed=1`,
+    success_url: `${appUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${appUrl}/cart?cancelled=1`,
   })
 

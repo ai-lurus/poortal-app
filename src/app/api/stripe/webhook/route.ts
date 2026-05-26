@@ -20,6 +20,31 @@ export async function POST(request: Request) {
     )
   }
 
+  if (event.type === 'account.updated') {
+    const account = event.data.object
+    await prisma.provider_profiles.updateMany({
+      where: { stripe_account_id: account.id },
+      data: {
+        stripe_onboarding_complete: Boolean(
+          account.details_submitted && account.charges_enabled && account.payouts_enabled
+        ),
+      },
+    })
+    return NextResponse.json({ received: true })
+  }
+
+  if (event.type === 'checkout.session.expired') {
+    const session = event.data.object
+    const bookingId = session.metadata?.bookingId
+    if (bookingId) {
+      await prisma.bookings.updateMany({
+        where: { id: bookingId, status: 'pending_payment' },
+        data: { status: 'cancelled' },
+      })
+    }
+    return NextResponse.json({ received: true })
+  }
+
   if (event.type !== 'checkout.session.completed') {
     return NextResponse.json({ received: true })
   }
@@ -40,6 +65,7 @@ export async function POST(request: Request) {
           provider_profiles: {
             select: {
               id: true,
+              user_id: true,
               stripe_account_id: true,
               stripe_onboarding_complete: true,
             },
@@ -69,7 +95,7 @@ export async function POST(request: Request) {
     await tx.bookings.update({
       where: { id: booking.id },
       data: {
-        status: 'paid',
+        status: 'confirmed',
         stripe_payment_intent_id: paymentIntentId ?? null,
         stripe_checkout_session_id: session.id,
       },
@@ -129,7 +155,33 @@ export async function POST(request: Request) {
           },
         })
       }
+
+      await tx.notifications.create({
+        data: {
+          user_id: item.provider_profiles.user_id,
+          type: 'booking_confirmed',
+          title: 'Nueva reserva pagada',
+          body: `Reserva ${booking.booking_number} lista para validar con QR.`,
+          link: '/provider/bookings',
+          metadata: {
+            bookingId: booking.id,
+            bookingItemId: item.id,
+            experienceId: item.experience_id,
+          },
+        },
+      })
     }
+
+    await tx.notifications.create({
+      data: {
+        user_id: booking.user_id,
+        type: 'booking_confirmed',
+        title: 'Tus tickets estan listos',
+        body: `Reserva ${booking.booking_number} confirmada. Abre tu wallet para ver los QR.`,
+        link: '/wallet',
+        metadata: { bookingId: booking.id },
+      },
+    })
   })
 
   for (const item of booking.booking_items) {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft, Percent, X, Loader2, Mail } from 'lucide-react'
 import Image from 'next/image'
 import { useCartStore } from '@/stores/cart-store'
@@ -24,6 +24,7 @@ function formatTime(time: string) {
 
 export default function CartPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { data: session, isPending: sessionLoading } = useSession()
   const { items, removeItem, clearCart } = useCartStore()
   const [agreed, setAgreed] = useState(false)
@@ -69,10 +70,10 @@ export default function CartPage() {
       return
     }
 
-    clearCart()
     if (result.checkoutUrl) {
       window.location.href = result.checkoutUrl
     } else {
+      clearCart()
       router.push('/wallet?confirmed=1')
     }
   }
@@ -140,6 +141,12 @@ export default function CartPage() {
       </div>
 
       <main className="container mx-auto px-6 mt-4 max-w-md md:max-w-5xl">
+        {searchParams.get('cancelled') === '1' && items.length > 0 && (
+          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-medium text-amber-800">
+            Tu pago fue cancelado. Conservamos tu carrito para que puedas intentarlo de nuevo.
+          </div>
+        )}
+
         {items.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <p className="text-sm text-slate-400">Tu carrito está vacío</p>
